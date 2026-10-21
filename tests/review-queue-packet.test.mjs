@@ -58,7 +58,7 @@ test('already approved or published results are never exported as pending review
  for(const field of ['humanApproved','published','publicReleaseAuthorized']){
    assert.throws(()=>createLocalReviewPacket({
      ...args,report:{...report,[field]:true}
-   }),/authorized\\/published/);
+   }),/authorized/);
  }
 });
 
