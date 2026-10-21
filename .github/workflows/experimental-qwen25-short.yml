@@ -9,12 +9,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: real-qwen25-evaluation-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: real-qwen25-evaluation-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   real-model-and-voice:
-    if: github.event_name == 'pull_request' && github.event.pull_request.draft == true && github.event.pull_request.head.sha == '4c318917de1102bb4d2c0fdb0164bc17eb6f621f'
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == true && contains(github.event.pull_request.title, '[RUN QWEN25]')
     runs-on: ubuntu-latest
     timeout-minutes: 18
     steps:
