@@ -878,7 +878,10 @@ export default function App() {
                       </p>
                     </div>
                   </div>
-                  <ShortsPlanPreview project={edit} />
+                  <ShortsPlanPreview
+                    project={edit}
+                    saved={state.projects.find(p => p.id === edit.id) || null}
+                  />
                   <EditorialWorkflow
                     project={edit}
                     saved={state.projects.find(p => p.id === edit.id) || null}

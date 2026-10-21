@@ -79,3 +79,11 @@ covering the original agent contracts, momentum and scene/caption planning.
 All new files and UI hooks remain only on the GitHub work branch. The AppDeploy
 production app has NOT received them. Any future integration requires full
 AppDeploy build, authenticated QA, rights/cost controls, and owner approval.
+
+## Offline subtitle and JSON preproduction exports
+- New `src/subtitle-export.ts` exports a draft SRT from frame-derived approximate scene/cue timing and a JSON production bundle.
+- Filenames are sanitized and explicitly marked `-DRAFT`.
+- Draft SRT timing is NOT synchronized to the audio track; it requires verification and correction before final rendering.
+- UI download buttons appear only for a saved manuscript version matching the editor content, never for unsaved edits.
+- JSON manifest explicitly records `notForPublication: true`, unverified rights, media not generated, voice not generated, and captions estimated.
+- Extra regression coverage in `tests/subtitle-export.test.mjs`; no external API or paid AI calls.
