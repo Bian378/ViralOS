@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { inspectOriginalScript, askLocalQwen, runRealScriptTrial, MODEL } from '../scripts/real_qwen25_short.mjs';
 
 const valid=readFileSync(new URL('./fixtures/short_script_en.txt',import.meta.url),'utf8');
+const realResponse=readFileSync(new URL('./fixtures/qwen25-real-response.txt',import.meta.url),'utf8');
 function withDirectory(fn){
   const base=mkdtempSync(join(tmpdir(),'viralos-qwen25-'));
   return Promise.resolve().then(()=>fn(base)).finally(()=>rmSync(base,{recursive:true,force:true}));
@@ -71,4 +72,28 @@ test('provider request is only localhost, not a paid cloud endpoint',async()=>{
   assert.equal(body.stream,false);
   assert.equal(body.messages[0].role,'system');
   assert.equal(script,valid);
+});
+
+test('REAL Qwen2.5 response gets only blank-line formatting normalized; text unchanged',()=>{
+  const result=inspectOriginalScript(realResponse);
+  assert.equal(result.valid,true);
+  assert.equal(result.normalizationApplied,true);
+  assert.equal(result.words,80);
+  assert.equal(result.manifest.scenePlan.scenes.length,5);
+  const rawWords=realResponse.trim().split(/\s+/).join(' ');
+  const fixedWords=result.script.trim().split(/\s+/).join(' ');
+  assert.equal(fixedWords,rawWords);
+  assert.equal(result.manifest.notForPublication,true);
+});
+
+test('line normalization does not launder unsuitable text',()=>{
+  const bad=[
+    'A tiny hook goes right here?',
+    'Only three words',
+    'Short text remains',
+    'Still way too short',
+  ].join('\n');
+  const result=inspectOriginalScript(bad);
+  assert.equal(result.valid,false);
+  assert.match(result.reason,/80–150/);
 });
