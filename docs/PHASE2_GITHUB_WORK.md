@@ -185,3 +185,36 @@ To measure velocity, a second real reading at a later time must be stored
 and compared with actual timestamps. The existing pure momentum module
 supports that later step. This collector currently performs ONE request
 and writes ONE timestamped snapshot; it is not an autonomous radar.
+
+## Offline YouTube observations → topic → four agents → MP4 (new)
+
+The `scripts/youtube_candidate_radar.mjs` module consumes previously saved
+YouTube popularity snapshots; it makes NO new API calls. It requires two
+snapshots from the same region, 15 minutes to 24 hours apart, and compares
+cumulative counts for the same video. Counter decreases, mismatched video
+metadata and missing earlier observations are not treated as measured growth.
+Single snapshots produce ONLY a popularity list, without an automated
+growth-based suggestion. Two valid observations measure an interval-average
+views-per-hour, NOT a verified virality trend or proof the video is a Short.
+
+`scripts/run_saved_trend_to_preview.mjs` is a MANUALLY triggered bridge:
+operator selects one exact video ID from the saved shortlist, explicitly
+authorizes four local Ollama calls, and specifies a new output folder.
+The selected video is only a TOPIC/reference; the source footage is NEVER
+downloaded/copied by the pipeline. All facts, copyright rights, scripts,
+subtitles, voice and publication permission remain unverified/unapproved.
+
+Example after a local Ollama model has been installed:
+
+    node --experimental-strip-types scripts/run_saved_trend_to_preview.mjs \
+      --latest latest-popularity.json --earlier earlier-popularity.json \
+      --video-id ABCDEFGHIJK --model llama3.2:3b \
+      --out-dir ./unapproved-short-preview --silent-preview \
+      --allow-local-inference
+
+The separate collection step requires its own explicit consent and quota.
+No YouTube collection or local neural inference has been run by CI.
+CI uses two SYNTHETIC popularity snapshots and MOCK local-model outputs,
+but FFmpeg renders an ACTUAL H.264 MP4 and verifies it on disk.
+CI tests cover stale/mismatched snapshots, single-reading limitations,
+manual choice and consent, without AppDeploy credits or YouTube API usage.
