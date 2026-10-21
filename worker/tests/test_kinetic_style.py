@@ -43,7 +43,7 @@ class KineticSafetyTests(unittest.TestCase):
             self.assertNotIn("danger",graph)
             titles=list(Path(d).glob("kinetic-title-*.txt"))
             self.assertEqual(len(titles),2)
-            self.assertIn("‹danger›",titles[0].read_text(encoding="utf-8"))
+            self.assertTrue(any("‹danger›" in title.read_text(encoding="utf-8") for title in titles))
 
     def test_captions_still_use_storyboard_timestamps(self):
         data=manifest()["scenePlan"]
