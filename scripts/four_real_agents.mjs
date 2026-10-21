@@ -111,6 +111,7 @@ export async function requestRealLocalAgent({prompt,role,fetchImpl=fetch}) {
 export async function runFourRealAgents({
   topic,sourceUrl,explicitLocalConsent=false,
   invoke=requestRealLocalAgent,projectId='local-four-real-agents',revision=1,
+  managerPolicy='generate',
 }) {
   validateTopic(topic,sourceUrl);
   if(explicitLocalConsent!==true)
@@ -118,9 +119,24 @@ export async function runFourRealAgents({
   if(!/^[A-Za-z0-9_-]{1,80}$/.test(projectId)||
      !Number.isSafeInteger(revision)||revision<1)
     throw Error('A safe project identifier and positive revision are required.');
+  if(!['generate','preserve-valid'].includes(managerPolicy))
+    throw Error('Unknown manager policy, expected generate or preserve-valid.');
   const stages=[];
+  let managerModelCallSkipped=false;
+  let managerDecision='generative_manager_rewrite';
   const inputs={topic,sourceUrl,initialScript:'',review:'',revisedScript:''};
   for(const role of ROLES){
+    if(role==='manager'&&managerPolicy==='preserve-valid'){
+      const earlier=chooseValidatedEditorialDraft(stages);
+      if(earlier.selectedScript){
+        // Real manager model call is skipped: deterministic format-only
+        // selection, never a claimed model inference, rights check or approval.
+        managerModelCallSkipped=true;
+        managerDecision='deterministic_preserve_valid_draft';
+        break;
+      }
+      managerDecision='generative_manager_rescue_attempt';
+    }
     const prompt=stagePrompt({role,...inputs});
     const answer=await invoke({role,prompt,model:MODEL});
     if(typeof answer!=='string'||!answer.trim()||answer.length>4500)
@@ -155,14 +171,20 @@ export async function runFourRealAgents({
       type:'viralos-four-real-agent-editorial-run',
       model:MODEL,
       status:accepted?'UNVERIFIED_MANUSCRIPT_READY_FOR_HUMAN_REVIEW':'MANUSCRIPT_REJECTED_BY_VALIDATOR',
-      rolesExecuted:[...ROLES],modelCalls:4,
+      rolesPlanned:[...ROLES],
+      rolesExecuted:stages.map(stage=>stage.role),
+      modelCalls:stages.length,
+      managerModelCallSkipped,
+      managerDecision,
+      managerPolicy,
       stageResults:stages,
       // Final manager output and selected upstream fallback are distinct.
-      finalWordCount:stages[3].words,
+      finalWordCount:stages.find(stage=>stage.role==='manager')?.words??null,
       selectedWordCount:accepted?selection.selectedWords:null,
       finalFormattingNormalized:selection.candidateChecks.find(x=>x.role==='manager')?.normalizationApplied||false,
       selectedDraftRole:accepted?selection.selectedRole:null,
       selectedDraftFromPriorAgent:accepted?selection.selectedWasNotManager:false,
+      selectionWasFormatOnly:true,
       selectedDraftSha256:accepted?selection.selectedSha256:null,
       editorialCandidateChecks:selection.candidateChecks,
       candidateSelectionRule:selection.selectionRule,
