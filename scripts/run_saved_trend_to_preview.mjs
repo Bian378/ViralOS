@@ -25,13 +25,13 @@ export async function runSavedTrendToPreview({
   latest,earlier=null,videoId,model,destination,
   allowLocalInference=false,silentPreview=false,
   narration=null,audioRightsChecked=false,
-  inference,pythonRunner,
+  inference,pythonRunner,asOf=new Date().toISOString(),
 }){
   if(allowLocalInference!==true)
     throw new Error('Explicit local inference authorization required.');
   if(typeof videoId!=='string'||!videoId.trim())
     throw new Error('Select one exact video ID from the shortlist.');
-  const radar=buildCandidateRadar({latest,earlier,maxItems:25});
+  const radar=buildCandidateRadar({latest,earlier,maxItems:25,asOf});
   const candidate=selectOriginalCommentaryTopic(radar,videoId);
   // Explicit owner selection is mandatory even if velocity data suggested an ID.
   const result=await buildAgentVideoPreview({
