@@ -5,11 +5,11 @@ import { buildShortsProductionPlan } from '../src/shorts-production-plan.ts';
 const hook = 'What if GTA VI changes gaming forever?';
 const fullScript = [
   hook,
-  Array(20).fill('The trailer shows an ambitious fictional world').join(' '),
-  Array(20).fill('Players are wondering what will come next').join(' '),
-  Array(20).fill('Questions about gameplay remain open for everyone').join(' '),
-  Array(20).fill('This original commentary does not quote anyone').join(' '),
-  Array(20).fill('What do you want from the game').join(' '),
+  Array(20).fill('commentary').join(' '),
+  Array(20).fill('gaming').join(' '),
+  Array(20).fill('storytelling').join(' '),
+  Array(20).fill('originality').join(' '),
+  Array(20).fill('engagement').join(' '),
 ].join('\n\n');
 const base = () => ({
   projectId: 'gta-qa', revision: 1, title: 'GTA VI could change gaming',
