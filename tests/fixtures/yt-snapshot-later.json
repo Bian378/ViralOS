@@ -1,0 +1,37 @@
+{
+  "kind": "viralos-youtube-popularity-snapshot",
+  "region": "US",
+  "observedAt": "2026-10-21T19:00:00Z",
+  "source": "SYNTHETIC TEST DATA - NOT A REAL API RESPONSE",
+  "costEstimateYouTubeQuotaUnits": 0,
+  "shortsStatus": "UNVERIFIED",
+  "viewGrowthStatus": "NO_SECOND_OBSERVATION",
+  "candidates": [
+    {
+      "id": "ABCDEFGHIJK",
+      "title": "A hypothetical open-world game storytelling idea",
+      "sourceUrl": "https://www.youtube.com/watch?v=ABCDEFGHIJK",
+      "publishedAt": "2026-10-20T08:00:00Z",
+      "observedAt": "2026-10-21T19:00:00Z",
+      "totalViews": 4700,
+      "durationSeconds": 98,
+      "shortsConfirmed": false,
+      "perHourGrowthMeasured": false,
+      "rightsVerified": false,
+      "factualClaimsVerified": false
+    },
+    {
+      "id": "LMNOPQRSTUV",
+      "title": "An older high-view video",
+      "sourceUrl": "https://www.youtube.com/watch?v=LMNOPQRSTUV",
+      "publishedAt": "2026-10-18T08:00:00Z",
+      "observedAt": "2026-10-21T19:00:00Z",
+      "totalViews": 1800000,
+      "durationSeconds": 360,
+      "shortsConfirmed": false,
+      "perHourGrowthMeasured": false,
+      "rightsVerified": false,
+      "factualClaimsVerified": false
+    }
+  ]
+}

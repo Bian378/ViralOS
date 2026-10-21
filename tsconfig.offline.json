@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": [],
+    "jsx": "preserve"
+  },
+  "files": [
+    "src/agent-workflow.ts",
+    "src/momentum.ts",
+    "src/manager.ts",
+    "src/shorts-production-plan.ts",
+    "src/subtitle-export.ts",
+    "src/private-upload-gate.ts",
+    "src/ReviewInboxPreview.tsx"
+  ],
+  "include": [],
+  "exclude": [
+    "src/App.tsx",
+    "src/ShortsPlanPreview.tsx",
+    "backend",
+    "worker",
+    "tests"
+  ]
+}

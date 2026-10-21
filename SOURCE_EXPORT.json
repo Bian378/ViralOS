@@ -1,23 +1,37 @@
 {
   "app_id": "viralos-ai-dtmneg",
-  "snapshot_version": "1792532684833",
+  "source": "AppDeploy source snapshot",
+  "snapshot_version": "1792594434031",
   "exported_on": "2026-10-21",
   "files": [
     "backend/draft-format.ts",
     "backend/index.ts",
+    "backend/quality-format.ts",
     "backend/queue.ts",
     "cron.json",
     "docs/ARCHITECTURE.md",
+    "docs/QA_PHASE1.md",
     "index.html",
     "package.json",
     "postcss.config.js",
+    "src/AgentTeam.tsx",
     "src/App.tsx",
+    "src/Dashboard.tsx",
+    "src/EditorialWorkflow.tsx",
     "src/JobCenter.tsx",
+    "src/ScriptQuality.tsx",
+    "src/SystemCheck.tsx",
+    "src/TrendLab.tsx",
+    "src/editorial.ts",
     "src/index.css",
     "src/main.tsx",
+    "src/manager.ts",
     "src/model.ts",
     "src/queue-model.ts",
     "src/render.ts",
+    "src/review.ts",
+    "src/script-quality.ts",
+    "src/team.ts",
     "tailwind.config.js",
     "tests/tests.json",
     "tsconfig.json",
@@ -25,10 +39,13 @@
     "worker/Dockerfile",
     "worker/render.py"
   ],
-  "notes": [
-    "Source snapshot only. Runtime data, API secrets and OAuth credentials are not included.",
-    "No lockfile was present in the source snapshot.",
-    "@appdeploy/client and @appdeploy/sdk are injected by AppDeploy. A standalone checkout needs documented SDK/environment configuration.",
-    "AGENTS.md was supplied separately; place it at the project root."
-  ]
+  "github_only_files": [
+    "AGENTS.md",
+    "SOURCE_EXPORT.json",
+    "docs/PHASE2_GITHUB_WORK.md",
+    "src/agent-workflow.ts",
+    "tests/agent-workflow.test.mjs"
+  ],
+  "deployment_note": "GitHub branch not deployed. No runtime records or secret values copied. Main untouched.",
+  "cron": "Disabled in source snapshot."
 }

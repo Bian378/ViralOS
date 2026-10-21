@@ -1,0 +1,73 @@
+name: ViralOS offline safety tests
+on:
+  pull_request:
+    paths:
+      - 'src/agent-workflow.ts'
+      - 'src/momentum.ts'
+      - 'src/manager.ts'
+      - 'src/shorts-production-plan.ts'
+      - 'src/subtitle-export.ts'
+      - 'src/private-upload-gate.ts'
+      - 'src/ShortsPlanPreview.tsx'
+      - 'src/ReviewInboxPreview.tsx'
+      - 'src/review-inbox.ts'
+      - 'backend/index.ts'
+      - 'backend/review-routes.ts'
+      - 'src/review-inbox.ts'
+      - 'src/App.tsx'
+      - 'worker/**'
+      - 'scripts/**'
+      - 'tests/fixtures/**'
+      - 'tests/*.test.mjs'
+      - 'package.json'
+      - 'tsconfig.offline.json'
+      - '.github/workflows/agent-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: Install frontend dependencies for offline TypeScript check
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Typecheck pure offline ViralOS modules
+        run: npx tsc -p tsconfig.offline.json
+      - name: Test agent safety contracts and measured YouTube velocity
+        run: node --experimental-strip-types --test tests/agent-workflow.test.mjs tests/manager-momentum.test.mjs tests/shorts-production-plan.test.mjs tests/subtitle-export.test.mjs tests/private-upload-gate.test.mjs tests/local-manifest.test.mjs tests/local-agent-pipeline.test.mjs tests/agent-to-video.test.mjs tests/youtube-popular.test.mjs tests/candidate-radar.test.mjs tests/real-qwen25-short.test.mjs tests/four-real-agents.test.mjs tests/editorial-candidate-selection.test.mjs tests/review-queue-packet.test.mjs tests/review-inbox.test.mjs tests/backend-review-routes.test.mjs
+      - name: Install free FFmpeg and DejaVu Sans for real preview smoke test
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
+      - name: Python renderer contract tests (offline)
+        run: python3 -m unittest discover -s worker/tests -p 'test_*.py' -v
+      - name: Assert FFmpeg smoke test actually ran
+        run: |
+          command -v ffmpeg
+          command -v ffprobe
+          test -f /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+      - name: End-to-end text → plan → MP4 → SHA-256 verification (offline)
+        run: |
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          node --experimental-strip-types scripts/create_draft_plan.mjs \
+            --script tests/fixtures/short_script_en.txt \
+            --title "A fictional English Short" \
+            --source-url https://example.org/fictional-short \
+            --out "$tmpdir/source-DRAFT.json"
+          python3 worker/build_short_draft.py "$tmpdir/source-DRAFT.json" "$tmpdir/preview" --silent-preview
+          python3 worker/verify_draft.py "$tmpdir/preview"
+      - name: Offline simulated agents to real MP4 with FFmpeg and review lock
+        run: node --experimental-strip-types scripts/smoke_agent_video.mjs
+      - name: Synthetic YouTube observations to manually chosen Short preview (no quota)
+        run: node --experimental-strip-types scripts/smoke_trend_to_preview.mjs
+      - name: Archived real Qwen manuscript fallback to genuine kinetic MP4 (no inference)
+        run: node --experimental-strip-types scripts/smoke_select_fallback_short.mjs
+      - name: Preserve valid manager policy with three mock stages to real kinetic MP4
+        run: node --experimental-strip-types scripts/smoke_manager_preserve_valid.mjs
+

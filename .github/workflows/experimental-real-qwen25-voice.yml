@@ -1,0 +1,64 @@
+name: One-time real Qwen2.5 manuscript to Piper MP4 preview
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/experimental-real-qwen25-voice.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qwen25-archived-real-voice-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  render-one-real-ai-video:
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == true && contains(github.event.pull_request.title, '[RUN ONE VOICE]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Revalidate archived REAL Qwen2.5 manuscript, only fix line breaks
+        run: |
+          node --experimental-strip-types scripts/replay_qwen25_response.mjs \
+            tests/fixtures/qwen25-real-response.txt "$RUNNER_TEMP/real-ai-short"
+          test -s "$RUNNER_TEMP/real-ai-short/source-DRAFT.json"
+      - name: Install free English Piper voice and FFmpeg for evaluation
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
+          python3 -m venv "$RUNNER_TEMP/piper-venv"
+          "$RUNNER_TEMP/piper-venv/bin/pip" install --disable-pip-version-check 'piper-tts>=1.3,<2'
+          mkdir -p "$RUNNER_TEMP/voices"
+          "$RUNNER_TEMP/piper-venv/bin/python" -m piper.download_voices \
+            --data-dir "$RUNNER_TEMP/voices" en_US-joe-medium
+      - name: Render REAL Qwen2.5 English script with REAL Piper audio
+        run: |
+          "$RUNNER_TEMP/piper-venv/bin/python" worker/build_short_draft.py \
+            "$RUNNER_TEMP/real-ai-short/source-DRAFT.json" \
+            "$RUNNER_TEMP/real-ai-short/preview" \
+            --piper-model "$RUNNER_TEMP/voices/en_US-joe-medium.onnx" \
+            --voice-license-checked
+          "$RUNNER_TEMP/piper-venv/bin/python" worker/verify_draft.py \
+            "$RUNNER_TEMP/real-ai-short/preview"
+          test -s "$RUNNER_TEMP/real-ai-short/preview/short-DRAFT.mp4"
+      - name: Save test-only MP4, WAV, subtitles and approval-lock report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ViralOS-real-Qwen25-plus-Piper-EVALUATION-ONLY
+          path: |
+            ${{ runner.temp }}/real-ai-short/archived-response-QC.json
+            ${{ runner.temp }}/real-ai-short/source-DRAFT.json
+            ${{ runner.temp }}/real-ai-short/preview/short-DRAFT.mp4
+            ${{ runner.temp }}/real-ai-short/preview/narration-generated-DRAFT.wav
+            ${{ runner.temp }}/real-ai-short/preview/captions-ESTIMATED-DRAFT.srt
+            ${{ runner.temp }}/real-ai-short/preview/draft-receipt.json
+          if-no-files-found: warn
+          retention-days: 2

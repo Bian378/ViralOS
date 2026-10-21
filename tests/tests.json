@@ -1,199 +1,148 @@
 [
   {
-    "name": "Save, edit, reload and delete a private script",
+    "name": "Private workspace CRUD and account separation",
     "sanity": true,
     "viewport": "desktop",
     "covers": [
-      "authentication and sign-out",
+      "inloggning",
+      "arbetsyta privat per användare",
+      "manus sparas och kvarstår efter uppdatering",
+      "redigera och radera",
+      "utloggning rensar manus och videoförhandsvisning"
+    ],
+    "description": "Owner A can create, edit and delete a script, then sign out; another session does not see owner A's draft or preview.",
+    "steps": [
+      "Sign in as Actor A. Create and save a manual QA script, reload and verify it persists.",
+      "Edit the script and reload to confirm the new content is durable.",
+      "Open Videostudio, select the saved script, then log out.",
+      "Sign in as Actor B on the same device. Verify actor A's script and editor text are absent, and the dashboard shows only actor B's data.",
+      "Sign out Actor B; sign in Actor A, delete the QA script and reload to confirm it is gone."
+    ],
+    "expected": "Scripts persist only for their owners, and no editor or preview data leaks across logins."
+  },
+  {
+    "name": "Database self-check, theme choice and compact navigation",
+    "viewport": "desktop",
+    "covers": [
+      "POST /api/system-check authenticated",
+      "database creation, read, conditional update and deletion",
+      "stale-write rejection",
+      "queue storage check",
+      "safe diagnostic cleanup",
+      "POST /api/theme auth and account persistence",
+      "light and dark mode after reload",
+      "grouped navigation retains all 11 routes",
+      "dashboard collapsed detail panels"
+    ],
+    "description": "A logged-in user can run a backend diagnostic without writing to personal project data.",
+    "steps": [
+      "Sign in and open Systemkontroll.",
+      "Click Kör grundsystemtest and inspect detailed results.",
+      "Verify the diagnostic reports the actual server and database checks, and all passed when the database is operational.",
+      "Verify the queue API status appears and the page states that automatic scheduled work is paused.",
+      "Reload the page and confirm saved projects remain intact.",
+      "Go to System > Inställningar. Choose Ljust and confirm the page, sidebar, cards, forms and labels use a readable light palette.",
+      "Reload and sign out/in: Ljust must persist on the same account. A new account defaults to Mörkt. Switch back to Mörkt and verify dark appearance is unchanged.",
+      "Expand Upptäck, Skapa, Resultat and System from the simplified navigation; verify every original page is still accessible.",
+      "Open Översikt, expand Fler detaljer and Chefens statusunderlag and confirm their original actions remain available."
+    ],
+    "expected": "Backend diagnostic returns evidenced checks without modifying saved projects. Any failing check is displayed explicitly. User-selected light/dark appearance persists per account; grouped navigation and collapsible overview retain all original functionality."
+  },
+  {
+    "name": "Controllable authenticated HTTP 503 and safe recovery",
+    "viewport": "desktop",
+    "covers": [
+      "GET /api/system-check/simulated-503",
       "GET /api/state",
-      "GET /api/integrations",
-      "POST /api/projects",
-      "DELETE /api/projects/:id",
-      "durable script CRUD",
-      "text export",
-      "required input validation",
-      "anonymous workspace isolation"
+      "fail-closed workspace",
+      "visible retry",
+      "user data survives recovery"
     ],
-    "description": "A signed-in owner can save and edit a script, retains it after refresh and can delete it; anonymous visitors cannot read the workspace.",
+    "description": "Simulate an actual HTTP 503 from a protected test route, exercise the same workspace loader and retry view used for a real failure.",
     "steps": [
-      "Sign in with the supported test account if required. Open Videostudio and choose Nytt manus.",
-      "Click Spara manus with empty title and script; verify validation and no new saved project.",
-      "Set title to QA Original and script to Why does everything begin with a question? An idea grows when we explore it together. The next step is trying something small. Save the script.",
-      "Change title to QA Edited and save. Refresh the page, open Videostudio, select QA Edited and verify the saved script.",
-      "Exportera text and verify a text file downloads.",
-      "Delete QA Edited using its Radera action, confirm and refresh. Verify it is absent.",
-      "Log out. Verify the sign-in page displays and private projects are no longer visible."
+      "Sign in on an account with a saved test project. Go to Systemkontroll.",
+      "Click Simulera serverfel (503). Confirm the protected endpoint intentionally responds HTTP 503.",
+      "Confirm the normal workspace disappears, an error appears, and the screen shows Försök igen. It must never pretend that user projects were deleted.",
+      "Click Försök igen. Confirm the same account's saved projects and controls return, without changing their content.",
+      "Confirm no AI generation, automatic publishing or background job was started."
     ],
-    "expected": "Validation rejects empty content; saved edits survive reload, text export downloads, confirmed deletion persists and sign-out hides all workspace data."
+    "expected": "The app fails visibly and closed on a genuine HTTP 503 response, then successfully reloads the original private workspace on retry."
   },
   {
-    "name": "Import real source signals with pause and resume",
-    "viewport": "desktop",
-    "covers": [
-      "POST /api/agents",
-      "POST /api/collect HN",
-      "real source observations",
-      "source filtering",
-      "search",
-      "agent pause persistence",
-      "source links",
-      "agent activity logs"
-    ],
-    "description": "The implemented intelligence role gates source collection and actual HN API data appears with provenance.",
-    "steps": [
-      "Sign in and open AI-agenter. Pause Global Trend Intelligence if not already paused.",
-      "Refresh and verify its state is Pausad.",
-      "Open Trendradar and click Hämta Hacker News. Verify the paused-agent error is shown without simulated results.",
-      "Return to AI-agenter and resume Global Trend Intelligence. In Trendradar fetch Hacker News.",
-      "Verify actual signal titles, Hacker News labels, HN-poäng, source link and observation timestamp.",
-      "Search for a unique nonexistent phrase and verify the empty result. Clear search and verify signals return. Set source filter to Hacker News.",
-      "Refresh and verify the imported signals persist."
-    ],
-    "expected": "Pause persists and blocks collection; resumed collection produces source-backed records with timestamps, filtering works and data survives refresh."
-  },
-  {
-    "name": "Generate one real AI draft and render downloadable MP4",
-    "viewport": "desktop",
-    "covers": [
-      "POST /api/draft",
-      "AI trial consent",
-      "real AI result",
-      "VideoEncoder MP4 export",
-      "technical verification",
-      "local video preview",
-      "manual review",
-      "download",
-      "English structured title and script",
-      "broad social topic creative direction"
-    ],
-    "description": "A capped explicitly approved AI draft can be edited and exported as an actual silent vertical MP4.",
-    "steps": [
-      "Sign in. On Översikt choose Använd sociala trender + English if not already saved. In Inställningar enable Aktivera manuell AI-provning and save.",
-      "In Trendradar fetch Hacker News, choose one signal and click AI-manus. Accept the explicit credit-cost confirmation.",
-      "Wait for a real generated script in Videostudio. Verify both its original title and four paragraphs are in English, with a saved source URL. The source title may be another language. No unsupported source-video or cross-platform claims should be made.",
-      "If the output is longer than 180 words shorten it to four short paragraphs and save.",
-      "Click Skapa MP4 and wait for encoding to complete. Verify the actual video player, 1080 × 1920 and 15–45 second technical summary and no-audio disclosure.",
-      "Play the video, tick the manual review checkbox and download the MP4.",
-      "Change the manuscript and verify the previous rendered video and review check are invalidated."
-    ],
-    "expected": "Actual AI text is persisted and the generated MP4 plays and downloads with verified dimensions/duration; text changes invalidate its preview and review."
-  },
-  {
-    "name": "Source failures and unconnected publishing remain honest",
-    "viewport": "desktop",
-    "covers": [
-      "external API error handling",
-      "POST /api/collect failure",
-      "integration status",
-      "YouTube missing credentials guard",
-      "publishing blocked",
-      "analytics empty state"
-    ],
-    "description": "An injected collection failure is visible and disconnected social providers never pretend to publish or report metrics.",
-    "qa_faults": [
-      {
-        "method": "POST",
-        "path": "/api/collect",
-        "status": 502,
-        "body_json": {
-          "error": "Datakällan svarade inte. Försök igen senare."
-        }
-      }
-    ],
-    "steps": [
-      "Sign in. Open Trendradar and click Hämta Hacker News.",
-      "Verify the collection error is visible and no fabricated new source data is added.",
-      "Open Anslutningar and check YouTube is Ej ansluten when no key is configured, while TikTok and Meta remain unconnected.",
-      "Open Publicering and verify no active schedules or Auto-mode activation exists; manual MP4 export is the available path.",
-      "Open Analys & tillväxt and verify missing performance metrics are shown as unavailable, not invented statistics."
-    ],
-    "expected": "The error is actionable; no fake source records, publications or analytics appear, and missing integrations are labelled accurately."
-  },
-  {
-    "name": "Mobile settings validation and persistence",
+    "name": "Queue access, cancellation and safe guardrails",
     "viewport": "mobile",
-    "covers": [
-      "POST /api/settings",
-      "settings validation",
-      "settings persistence",
-      "mobile navigation",
-      "per-account English profile selection and region",
-      "production budget honesty",
-      "pause configuration",
-      "broad social content focus"
-    ],
-    "description": "A mobile user can set and retain valid preferences while invalid budgets are rejected.",
-    "steps": [
-      "Sign in on mobile. On Översikt choose Använd sociala trender + English if not already active. Verify the saved profile badge, then navigate horizontally to Inställningar.",
-      "Set daily production budget to 10 and monthly budget to 5. Save and verify validation error.",
-      "Change monthly budget to 100, max videos to 2 and YouTube-region to Sverige. Verify Manusspråk is English. Keep manual AI trial off, leave publishing stop checked. Save.",
-      "Reload and open Inställningar; verify all saved values and English output. Existing projects remain intact, including older non-English drafts. The profile button preserves all existing budget, region and consent values.",
-      "Verify disclosure that production budgets are saved but automatic paid production is blocked and manual AI trial costs are separate.",
-      "Open AI-agenter through mobile navigation and verify the ten roles are accessible without horizontal page overflow.",
-      "Using another signed-in account with Svenska selected, open or reload its workspace without choosing the profile button. Verify it remains Svenska; only an explicit settings save changes that account."
-    ],
-    "expected": "Invalid budgets are rejected; valid settings persist and mobile controls remain usable with clear limits."
-  },
-  {
-    "name": "Background collection with stop, cancellation and durable results",
-    "viewport": "desktop",
     "covers": [
       "GET /api/queue",
-      "POST /api/queue",
-      "POST /api/queue/control",
-      "POST /api/queue/:id/cancel",
-      "POST /api/queue/:id/run",
-      "durable job state",
-      "idempotent retries",
-      "source job result"
+      "owner-scoped queued jobs",
+      "manual stop and resume",
+      "job cancellation",
+      "AI requests require explicit consent"
     ],
-    "description": "An authenticated user can enqueue, stop, resume, cancel and execute source-only work with persistent outcomes.",
+    "description": "A user can inspect queue state and cannot accidentally trigger charged generation or publishing.",
     "steps": [
-      "Sign in, open Bakgrundsjobb, ensure the queue is resumed and choose Samla källsignaler with Hacker News.",
-      "Create a job and refresh. Verify the job remains queued or has a real completed result.",
-      "Stop the queue, verify Kör nu is unavailable and the stopped state survives a refresh. Resume the queue.",
-      "For a waiting source job choose Kör nu; verify completion and source records in Trendradar. Returning to the job page must show the completed record without a second Kör nu button.",
-      "Create another source job with a start time tomorrow, cancel it, refresh and verify it remains Avbruten with no run action.",
-      "Verify another signed-in user's queue does not display these jobs."
+      "Sign in and open Bakgrundsjobb; confirm visible quality-assurance pause disclosure.",
+      "Create one unpaid source-only task for a future time, confirm it persists on refresh.",
+      "Cancel the future job and reload; verify it remains cancelled.",
+      "Select AI pipeline with the explicit-cost checkbox unchecked, and verify it cannot be added.",
+      "Confirm the app has no automatic publishing or background render controls."
     ],
-    "expected": "Job state, control state and cancellation persist; execution produces genuine source data and terminal jobs cannot be re-run."
+    "expected": "Queue entries persist, cancellation works, and no charged calls or publishing happen without explicit approval."
   },
   {
-    "name": "Scheduled pipeline consent and missing configuration guard",
-    "viewport": "mobile",
-    "covers": [
-      "POST /api/queue pipeline validation",
-      "queue cost consent",
-      "mobile background job form",
-      "bounded scheduled start",
-      "worker heartbeat provenance"
-    ],
-    "description": "The queue validates consent and dates and never claims an unobserved scheduler heartbeat.",
-    "steps": [
-      "Sign in and open Bakgrundsjobb on mobile. Choose Samla signaler och skapa ett AI-manus.",
-      "Leave AI consent unchecked and attempt to enqueue. Verify an explicit validation error and no created job.",
-      "Select a start date more than seven days away. With a source-only workflow attempt to enqueue and verify date validation.",
-      "Verify YouTube cannot be selected without a configured API key.",
-      "Verify server status shows a real timestamp or Inväntar körning rather than invented activity."
-    ],
-    "expected": "Missing consent, invalid scheduling and unavailable integrations are blocked; mobile form and provenance remain clear."
-  },
-  {
-    "name": "Use YouTube as the social trend source without claiming full coverage",
+    "name": "Trend research manager and owner-approved script handoff",
     "viewport": "desktop",
+    "description": "A private trend candidate can be saved, edited, removed, and used to start an original manual script.",
     "covers": [
-      "POST /api/collect YouTube",
-      "default social source filtering",
-      "broad social trend scope",
-      "source coverage limitations"
+      "POST /api/candidates",
+      "POST /api/candidates/:id",
+      "DELETE /api/candidates/:id",
+      "candidate persistence",
+      "manual script handoff",
+      "publication stays blocked",
+      "MP4 text scene balancing without orphaned final words",
+      "H.264 9:16 export",
+      "Regression after recovery QA update",
+      "POST /api/manager/plans",
+      "POST /api/manager/plans/:id/select",
+      "rule-based shortlist",
+      "owner-scoped manager plan persistence",
+      "no AI or publishing without consent",
+      "GET /api/projects/:id/agent-review",
+      "POST /api/projects/:id/agent-review",
+      "free English Shorts preflight",
+      "AI quality suggestion requires separate consent",
+      "original script remains unchanged after AI quality analysis",
+      "AI review receipt per manuscript revision",
+      "POST /api/projects/:id/editorial",
+      "POST /api/projects/:id/editorial/attest",
+      "free source-agnostic per-revision collaborative editorial workflow",
+      "owner-scoped attestation",
+      "no model credits or publishing"
     ],
-    "description": "Configured YouTube collection appears as the primary source while unconnected platforms remain explicit.",
     "steps": [
-      "Sign in with the configured YouTube integration. Open Översikt and choose Hämta YouTube-signaler.",
-      "Verify Trendradar displays actual YouTube records, source links and observation timestamps; source filter is YouTube.",
-      "Verify the coverage notice describes a limited popularity sample and marks TikTok, Instagram and Facebook unconnected.",
-      "Switch to Alla källor, then fetch Hacker News and verify the filter switches to Hacker News. Switch back to YouTube and verify its imported records remain after refresh."
+      "Sign in and open Trendlabb, find one existing YouTube source or fetch it manually.",
+      "Click Spara kandidat, refresh, and verify it remains under Sparade.",
+      "Change status to Undersöks, add a note, save and refresh; verify note and status persist.",
+      "Click Skriv eget manus and verify a new manual draft opens with its source URL and without copying video content.",
+      "Remove the candidate, refresh and verify it is gone.",
+      "Verify Publicering remains blocked.",
+      "Open an original, saved 19-word manual English script, use Skapa MP4 and download the result. Confirm the final word is not a separate 5-second scene, and that the file decodes as 1080x1920, 24 FPS, H.264 with no sound.",
+      "After the update, navigate through Översikt, Trendlabb, Videostudio and Bakgrundsjobb and verify content is retained while scheduled jobs remain paused.",
+      "Sign in, collect YouTube signals manually if necessary, open Skapa > AI-agenter and click Skapa researchplan.",
+      "Verify a stored plan contains three or fewer source-linked candidates, evidence/limits and specialist stage notes. Refresh and confirm plan persists.",
+      "Click Välj denna idé and verify the selected item stays selected after refresh. Choose Skriv originalmanus; confirm Videostudio pre-fills title and source, not copied content.",
+      "Verify manager planning and selection did not initiate AI generation, MP4 export, background jobs or publishing. AI-manus must still require separate explicit consent.",
+      "Re-fetch enough new sources to evict an older shortlisted video; the saved plan must still allow manual manuscript creation from its snapshotted source/title. Paid AI draft remains unavailable without a current trend record.",
+      "Open a saved English manuscript in Videostudio and expand Manusanalys och AI-kvalitetskontroll; verify free word/hook/paragraph/source checks display without credit consent.",
+      "With AI-provning disabled, verify paid AI-granska is disabled. With AI-provning enabled explicitly, confirm that review requires a separate unknown-cost confirmation and runs at most once per project revision.",
+      "When an AI quality report exists, reload and verify it persists; use Använd förslaget i redigeraren and verify the existing server-saved script is not replaced until Spara manus is explicitly clicked.",
+      "Verify the report is owner scoped, does not claim factual verification, never approves or publishes a video, and uses the existing shared provider-credit quota.",
+      "In Videostudio open a saved English script, expand Agentflöde · Samordnad manusgranskning and start the free four-stage workflow; the server saves role-by-role observations without calling AI.",
+      "Refresh and verify the same editorial run persists. Confirm AI-agenter shows its status and opens that same saved manuscript.",
+      "Confirm rights/fact acknowledgments require two user checkboxes, do not imply independent verification and do not auto-approve a manuscript or upload.",
+      "Attest manually, reload and verify status is Underlag redo för manuell manusgranskning. Change and save script; old run cannot be reused and a new review is required for the new revision.",
+      "Verify account B cannot see account A's editorial reports. No background AI job, credits, video export, or publishing are triggered by either endpoint."
     ],
-    "expected": "Real YouTube observations remain available, source filtering works and broad creative scope never implies unconnected platform coverage."
+    "expected": "Candidate saves, updates, deletions and source-link handoff are durable and private without automatic production. MP4 split is balanced with no orphaned last word. Manager plans and selections persist privately, with no automatic AI spend or uploads. The owner-scoped four-stage free editorial report persists by project revision. Manual source/rights attestation is not final script or publication approval."
   }
 ]
