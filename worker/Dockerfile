@@ -1,7 +1,1 @@
-FROM python:3.12-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
-WORKDIR /app
-COPY render.py /app/render.py
-RUN useradd --create-home renderer
-USER renderer
-ENTRYPOINT ["python", "/app/render.py"]
+RlJPTSBweXRob246My4xMi1zbGltClJVTiBhcHQtZ2V0IHVwZGF0ZSAmJiBhcHQtZ2V0IGluc3RhbGwgLXkgLS1uby1pbnN0YWxsLXJlY29tbWVuZHMgZmZtcGVnIGZvbnRzLWRlamF2dS1jb3JlICYmIHJtIC1yZiAvdmFyL2xpYi9hcHQvbGlzdHMvKgpXT1JLRElSIC9hcHAKQ09QWSByZW5kZXIucHkgL2FwcC9yZW5kZXIucHkKUlVOIHVzZXJhZGQgLS1jcmVhdGUtaG9tZSByZW5kZXJlcgpVU0VSIHJlbmRlcmVyCkVOVFJZUE9JTlQgWyJweXRob24iLCAiL2FwcC9yZW5kZXIucHkiXQo=
