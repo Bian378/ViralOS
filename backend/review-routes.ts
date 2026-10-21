@@ -10,6 +10,7 @@
  *   permissions. Deployment and actual media storage are separate work.
  */
 import {db,json,error,requireAuth,isAppDatabaseError} from '@appdeploy/sdk';
+import {verifyPrivateMp4ByteStream} from './verified-media-bytes';
 import {
   importVerifiedLocalReviewPacket, applyOwnerReviewDecision,
   listOwnerReviews, type SafeReviewItem, type ReviewChecklist,
@@ -56,9 +57,17 @@ async function readOwnerItem(owner:string,id:string):Promise<SafeReviewItem|null
  * A real storage-backed caller is NOT wired up yet.
  */
 export async function trustedAddStoredReview(
-  localPacket:unknown, trusted:ServerVerifiedImportContext
+  localPacket:unknown, trusted:ServerVerifiedImportContext,
+  openPrivateStoredBytes:()=>AsyncIterable<Uint8Array>
 ):Promise<SafeReviewItem>{
-  const review=importVerifiedLocalReviewPacket(localPacket,trusted);
+  if(typeof openPrivateStoredBytes!=='function')
+    throw Error('Only independently read private media bytes may be imported.');
+  // Integrity is independently recomputed over PRIVATE STORED bytes here.
+  // The caller cannot approve using just an uploaded JSON digest/boolean.
+  const proof=await verifyPrivateMp4ByteStream(openPrivateStoredBytes(),trusted.storedMp4Sha256);
+  const review=importVerifiedLocalReviewPacket(localPacket,{
+    ...trusted,storedMp4Sha256:proof.sha256,exactByteVerificationPassed:true
+  });
   const owner=review.ownerId;
   for(let attempt=0;attempt<2;attempt++){
     const idx=await loadOwnerIndex(owner);
