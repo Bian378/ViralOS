@@ -4,6 +4,7 @@ import {mkdtempSync,existsSync,readFileSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {buildAgentVideoPreview} from '../scripts/agent_to_video_preview.mjs';
+import {runFourRealAgents} from '../scripts/four_real_agents.mjs';
 
 const fixture=readFileSync(new URL('./fixtures/short_script_en.txt',import.meta.url),'utf8');
 const base=(root)=>({
@@ -149,10 +150,9 @@ test('new four REAL chat model path can produce kinetic MP4 from manager draft',
     realChatAgents:true,kineticPreview:true,
     chatAgentRunner:async args=>{
       calls.push(args);
-      return {
-        report:{rolesExecuted:['creative','research','quality','manager'],realModelUsed:false},
-        draftManifest:{notForPublication:true},
-      };
+      return runFourRealAgents({...args,
+        invoke:async ({role})=>role==='research'?'HUMAN_REVIEW_REQUIRED':fixture,
+      });
     },
     pythonRunner:simulatePython(steps),
   });
@@ -180,4 +180,41 @@ test('rejects requested different model in fixed local Qwen2.5 four-chat pipelin
   await assert.rejects(buildAgentVideoPreview({
     ...base(root),realChatAgents:true,pythonRunner:simulatePython([]),
   }),/exactly Qwen2.5/);
+}));
+
+
+test('forged four-agent script provenance cannot reach FFmpeg',()=>inFolder(async root=>{
+  const steps=[];
+  const destination=join(root,'spoofed-draft');
+  await assert.rejects(buildAgentVideoPreview({
+    ...base(root),destination,model:'qwen2.5:1.5b-instruct-q4_K_M',
+    realChatAgents:true,pythonRunner:simulatePython(steps),
+    chatAgentRunner:async args=>{
+      const result=await runFourRealAgents({...args,
+        invoke:async ({role})=>role==='research'?'HUMAN_REVIEW_REQUIRED':fixture,
+      });
+      result.report.selectedDraftSha256='0'.repeat(64);
+      return result;
+    },
+  }),/does not match storyboard/);
+  assert.equal(steps.length,0);
+  assert.equal(existsSync(destination),false);
+}));
+
+test('missing approval lock in report is rejected even with format-valid draft',()=>inFolder(async root=>{
+  const steps=[];
+  const destination=join(root,'bad-approval');
+  await assert.rejects(buildAgentVideoPreview({
+    ...base(root),destination,model:'qwen2.5:1.5b-instruct-q4_K_M',
+    realChatAgents:true,pythonRunner:simulatePython(steps),
+    chatAgentRunner:async args=>{
+      const result=await runFourRealAgents({...args,
+        invoke:async ({role})=>role==='research'?'HUMAN_REVIEW_REQUIRED':fixture,
+      });
+      result.report.publicReleaseAuthorized=true;
+      return result;
+    },
+  }),/approval gate is invalid/);
+  assert.equal(steps.length,0);
+  assert.equal(existsSync(destination),false);
 }));
