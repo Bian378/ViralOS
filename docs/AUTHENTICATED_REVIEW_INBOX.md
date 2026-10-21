@@ -52,3 +52,23 @@
 5. Test two real AppDeploy accounts and simultaneous-review races.
 6. Deploy only after a successful build/QA. Keep private YouTube consent
    and public release as separate owner actions.
+
+## Independent streamed stored-MP4 digest (new)
+
+`backend/verified-media-bytes.ts` reads a trusted private media byte stream,
+enforces a strict 150 MB maximum, requires a nonempty MP4 `ftyp` header
+and computes SHA-256 from the actual stream. No client-supplied checksum
+or `exactByteVerificationPassed` boolean can replace this read in
+`trustedAddStoredReview` – it now requires a server-only byte reader.
+
+The SHA and header prove byte identity and rule out obvious non-MP4
+input, **not** that the file is decodable, safe, properly licensed, or
+synced to narration. Full server-side ffprobe/codec and user review
+remain mandatory before private upload or publication. The private object
+storage reader that will supply these bytes is still NOT implemented;
+there is intentionally no browser-accessible import route.
+
+`tests/backend-review-routes.test.mjs` uses synthetic in-memory bytes
+with an MP4-looking header to validate stream hashing and rejection of
+tampering. It never claims to prove that synthetic bytes are a playable
+video. Real FFmpeg end-to-end tests separately verify rendered MP4 output.
