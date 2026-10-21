@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { runLocalAgents } from './local_agent_pipeline.mjs';
 import { runFourRealAgents, MODEL as REAL_CHAT_MODEL } from './four_real_agents.mjs';
+import {createHash} from 'node:crypto';
 
 function validateOptions(args) {
   if (args.explicitLocalConsent !== true)
@@ -65,6 +66,25 @@ export async function buildAgentVideoPreview({
     });
   if(!draftManifest||draftManifest.notForPublication!==true)
     throw new Error('Four-agent manager draft failed validation; no video can be rendered.');
+  if(realChatAgents){
+    // Bind the exact accepted script bytes to the saved manager/agent report
+    // BEFORE starting FFmpeg. Report cannot describe one agent while the video
+    // silently renders another's content.
+    const selected=report?.selectedDraftRole;
+    const expected=report?.selectedDraftSha256;
+    const scenes=draftManifest.scenePlan?.scenes;
+    if(!['creative','quality','manager'].includes(selected)||
+       typeof expected!=='string'||!/^[a-f0-9]{64}$/.test(expected)||
+       !Array.isArray(scenes)||!scenes.length||
+       report.manuscriptFormatPassed!==true||
+       report.publicReleaseAuthorized!==false||report.published!==false){
+      throw new Error('Four-agent draft provenance or approval gate is invalid.');
+    }
+    const actualScript=scenes.map(s=>s.text).join('\n\n');
+    const actual=createHash('sha256').update(actualScript,'utf8').digest('hex');
+    if(actual!==expected)
+      throw new Error('Four-agent accepted script SHA-256 does not match storyboard.');
+  }
   mkdirSync(root);  // Exclusive reservation, no overwriting existing work.
   try {
     writeFileSync(join(root,'agent-proposals-UNVERIFIED.json'),
