@@ -127,6 +127,8 @@ class PipelineValidation(unittest.TestCase):
                 source, package, narration=wav, audio_rights_checked=True)
             self.assertTrue((package / "short-DRAFT.mp4").is_file())
             self.assertTrue((package / "short-DRAFT.qc.json").is_file())
+            self.assertTrue((package / "captions-ESTIMATED-DRAFT.srt").is_file())
+            self.assertIn("00:00:06,000", (package / "captions-ESTIMATED-DRAFT.srt").read_text())
             self.assertTrue((package / "source-DRAFT.json").is_file())
             self.assertTrue((package / "narration-owned.wav").is_file())
             self.assertEqual(receipt["audio"], "operator_wav")

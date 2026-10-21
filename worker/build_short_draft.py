@@ -15,6 +15,8 @@ import tempfile
 
 from local_voiceover import create_local_voiceover, english_voice_config, wav_duration
 from render_from_plan import load_and_validate, render
+from retime_timeline import retime_plan_to_duration
+from draft_subtitles import draft_srt
 
 
 def hash_file(path: Path) -> str:
@@ -87,6 +89,12 @@ def build_draft(
                 audio_rights_checked=(wav is not None),
                 fit_narration=(wav is not None),
             )
+            # Use the same proportional frame scaling used inside the renderer.
+            # These cues are still only ESTIMATES, not speech-aligned.
+            caption_plan = (retime_plan_to_duration(plan, wav_duration(wav))
+                            if wav is not None else plan)
+            caption_file = stage / "captions-ESTIMATED-DRAFT.srt"
+            caption_file.write_bytes(draft_srt(caption_plan).encode("utf-8"))
             if not movie.is_file() or movie.stat().st_size < 1000:
                 raise ValueError("Renderer did not produce a usable draft MP4.")
             qc_path = movie.with_suffix(".qc.json")
@@ -110,6 +118,7 @@ def build_draft(
                 "audioSha256": hash_file(wav) if wav else None,
                 "audioIncluded": video_receipt["audioAttached"],
                 "subtitleTiming": "ESTIMATED_NOT_SPEECH_SYNCED",
+                "captionSha256": hash_file(caption_file),
                 "licensedAssets": "OPERATOR_SELF_ATTESTATION_ONLY" if wav else "NO_EXTERNAL_MEDIA",
                 "humanReviewed": False,
                 "productionApproved": False,

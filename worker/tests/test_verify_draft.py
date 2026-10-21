@@ -73,6 +73,17 @@ class VerifyDraftTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"Audio SHA"):
                 verifier.verify_draft(dest)
 
+    @unittest.skipUnless(FFMPEG_READY, "Requires FFmpeg and DejaVu font")
+    def test_tampered_caption_file_detected(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            dest=root/"package"
+            builder.build_draft(sample(root),dest,silent_preview=True)
+            caption=dest/"captions-ESTIMATED-DRAFT.srt"
+            caption.write_bytes(caption.read_bytes()+b"fake")
+            with self.assertRaisesRegex(ValueError,"SHA-256"):
+                verifier.verify_draft(dest)
+
     def test_missing_report_is_not_falsely_accepted(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)

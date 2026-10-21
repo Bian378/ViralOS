@@ -67,3 +67,12 @@ A successful draft verification is not a license clearance or consent to upload.
 The GitHub Actions run performs the entire text → plan → MP4 → integrity chain
 with no model inference, no publication, no AppDeploy credits and no external
 content downloads (only CI tool/dependency setup).
+
+## Audio-length-adapted draft subtitle file
+
+Every offline package now also includes `captions-ESTIMATED-DRAFT.srt`. It uses
+the exact proportional frame mapping applied by the local FFmpeg worker when
+narration was supplied, or the original scene estimates for silent previews.
+The SRT checksum is recorded in `draft-receipt.json` and checked again by
+`worker/verify_draft.py`. It is **not forced-aligned to individual spoken
+words** and always requires a human timing review.

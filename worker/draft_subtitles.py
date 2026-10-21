@@ -39,8 +39,7 @@ def draft_srt(plan: dict) -> str:
                 raise ValueError("Caption text must be a string.")
             # Never render user-provided HTML or subtitle cue structures as markup.
             clean = re.sub(r"[\x00-\x1f\x7f]", " ", text).strip()
-            clean = clean.replace("<", "‹").replace(">", "›")
-            clean = clean.replace("-->", "→")
+            clean = clean.replace("-->", "→").replace("<", "‹").replace(">", "›")
             if not clean or len(clean) > 320:
                 raise ValueError("Invalid caption text.")
             index += 1

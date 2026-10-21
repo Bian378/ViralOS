@@ -20,6 +20,7 @@ def verify_draft(directory: Path) -> dict:
     if not root.is_dir() or directory.is_symlink():
         raise ValueError("Expected an actual local draft directory.")
     names = ["source-DRAFT.json", "short-DRAFT.mp4", "short-DRAFT.qc.json",
+             "captions-ESTIMATED-DRAFT.srt",
              "draft-receipt.json"]
     for name in names:
         f = root / name
@@ -42,7 +43,8 @@ def verify_draft(directory: Path) -> dict:
         raise ValueError("Source manuscript revision does not match receipt.")
     if receipt.get("sourceManifestSha256") != hash_file(manuscript) or \
        receipt.get("draftMp4Sha256") != hash_file(movie) or \
-       receipt.get("draftMp4Bytes") != movie.stat().st_size:
+       receipt.get("draftMp4Bytes") != movie.stat().st_size or \
+       receipt.get("captionSha256") != hash_file(root / "captions-ESTIMATED-DRAFT.srt"):
         raise ValueError("SHA-256 or file-size integrity mismatch.")
     video_qc = json.loads((root / "short-DRAFT.qc.json").read_text(encoding="utf-8"))
     if video_qc.get("status") != "DRAFT_REQUIRES_HUMAN_REVIEW" or \
