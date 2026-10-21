@@ -137,5 +137,55 @@ class ValidationTests(unittest.TestCase):
             self.assertTrue(destination.with_suffix(".qc.json").exists())
 
 
+    @unittest.skipUnless(
+        __import__("shutil").which("ffmpeg") and __import__("shutil").which("ffprobe")
+        and Path(renderer.FONT).is_file(),
+        "FFmpeg or DejaVuSans not available on runner",
+    )
+    def test_actual_audio_muxes_into_private_draft_with_ffprobe(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            path=root/"input.json"
+            output=root/"draft-audio.mp4"
+            wav=root/"operator-supplied-test-tone.wav"
+            path.write_text(json.dumps(manifest()),encoding="utf-8")
+            renderer.subprocess.run([
+                "ffmpeg","-nostdin","-v","error","-y",
+                "-f","lavfi","-i","sine=frequency=440:duration=2:sample_rate=16000",
+                "-c:a","pcm_s16le",str(wav)
+            ],check=True)
+            receipt=renderer.render(path,output,wav,True)
+            self.assertTrue(receipt["audioAttached"])
+            self.assertEqual(receipt["estimatedTimelineRetimedToNarration"],False)
+            self.assertFalse(receipt["humanApproved"])
+            self.assertFalse(receipt["published"])
+            self.assertEqual(receipt["rights"],"UNVERIFIED_BY_SOFTWARE")
+
+    @unittest.skipUnless(
+        __import__("shutil").which("ffmpeg") and __import__("shutil").which("ffprobe")
+        and Path(renderer.FONT).is_file(),
+        "FFmpeg or DejaVuSans not available on runner",
+    )
+    def test_longer_voice_retimes_captioned_draft_when_user_opts_in(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            path=root/"input.json"
+            output=root/"retimed-draft.mp4"
+            wav=root/"demo-tone.wav"
+            path.write_text(json.dumps(manifest()),encoding="utf-8")
+            renderer.subprocess.run([
+                "ffmpeg","-nostdin","-v","error","-y",
+                "-f","lavfi","-i","sine=frequency=440:duration=6:sample_rate=16000",
+                "-c:a","pcm_s16le",str(wav)
+            ],check=True)
+            receipt=renderer.render(path,output,wav,True,True)
+            self.assertTrue(receipt["audioAttached"])
+            self.assertTrue(receipt["estimatedTimelineRetimedToNarration"])
+            self.assertEqual(receipt["originalPlanFrames"],60)
+            self.assertEqual(receipt["renderedFrames"],180)
+            self.assertEqual(receipt["subtitles"],"ESTIMATED_NOT_SPEECH_SYNCED")
+            self.assertTrue(output.is_file())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -104,3 +104,12 @@ server-side auth, compute SHA from actual stored bytes, maintain CAS transaction
 state and use the immutable approved metadata. Rights self-attestation is not
 independent legal verification. No uploaded file is safe solely because flags
 were submitted.
+
+## Offline AI voice and audio render (GitHub-only)
+- `worker/local_voiceover.py` prepares a WAV with local English Piper ONNX voice only.
+- Requires locally existing Piper binary, ONNX+JSON and explicit voice-license self-check.
+- No model downloading, API calls, GPU subscriptions, external uploads or automatic execution.
+- `worker/retime_timeline.py` proportionally adjusts scene/caption timing to operator-supplied narration length, without pretending word-level speech synchronization.
+- `worker/render_from_plan.py --fit-narration` opts into re-timing before audio muxing.
+- CI smoke tests use a synthetic FFmpeg tone, **not a natural AI voice**.
+- These are standalone local scripts, not connected to AppDeploy or its users.

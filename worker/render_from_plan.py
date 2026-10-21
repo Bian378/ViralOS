@@ -14,6 +14,7 @@ import subprocess
 import tempfile
 import textwrap
 from fractions import Fraction
+from retime_timeline import retime_plan_to_duration
 
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 FPS = 30
@@ -122,17 +123,25 @@ def create_filters(plan: dict, work_dir: Path) -> str:
 
 
 def render(manifest: Path, destination: Path, narration: Path | None = None,
-           audio_rights_checked: bool = False) -> dict:
+           audio_rights_checked: bool = False,
+           fit_narration: bool = False) -> dict:
     plan = load_and_validate(manifest)
     if narration and not audio_rights_checked:
         raise ValueError("Explicit audio rights declaration required.")
+    if fit_narration and not narration:
+        raise ValueError("Narration file required for timeline fitting.")
+    original_frames = plan["totalFrames"]
     total_seconds = plan["totalFrames"] / FPS
     if narration:
         metadata = probe_json(["-show_entries", "format=duration", str(narration.resolve())])
         audio_seconds = float(metadata["format"]["duration"])
-        if not math.isfinite(audio_seconds) or audio_seconds <= 0 or \
-           abs(audio_seconds - total_seconds) > 0.75:
-            raise ValueError("Narration must match estimated scene length within 0.75s.")
+        if not math.isfinite(audio_seconds) or audio_seconds <= 0:
+            raise ValueError("Narration has invalid duration.")
+        if fit_narration:
+            plan = retime_plan_to_duration(plan, audio_seconds)
+            total_seconds = plan["totalFrames"] / FPS
+        elif abs(audio_seconds - total_seconds) > 0.75:
+            raise ValueError("Narration must match scene length within 0.75s or use --fit-narration.")
     destination = destination.resolve()
     if destination.suffix.lower() != ".mp4":
         raise ValueError("Output must be a .mp4 file.")
@@ -174,6 +183,9 @@ def render(manifest: Path, destination: Path, narration: Path | None = None,
         "width": 1080, "height": 1920, "fps": FPS,
         "durationSeconds": float(meta["format"]["duration"]),
         "audioAttached": audio_present,
+        "estimatedTimelineRetimedToNarration": bool(narration and fit_narration),
+        "originalPlanFrames": original_frames,
+        "renderedFrames": plan["totalFrames"],
         "subtitles": "ESTIMATED_NOT_SPEECH_SYNCED",
         "rights": "UNVERIFIED_BY_SOFTWARE",
         "humanApproved": False,
@@ -191,9 +203,11 @@ def main():
     parser.add_argument("destination", type=Path)
     parser.add_argument("--narration", type=Path, default=None)
     parser.add_argument("--audio-rights-checked", action="store_true")
+    parser.add_argument("--fit-narration", action="store_true",
+                        help="Retimes estimated scenes/captions to provided narration; not speech alignment")
     args = parser.parse_args()
     result = render(args.manifest, args.destination, args.narration,
-                    args.audio_rights_checked)
+                    args.audio_rights_checked, args.fit_narration)
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
 

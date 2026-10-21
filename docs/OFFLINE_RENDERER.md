@@ -27,3 +27,34 @@ Offline tests:
 ```bash
 python3 -m unittest discover -s worker/tests -p 'test_*.py' -v
 ```
+
+## Free local Piper English AI voice preparation
+
+An **optional** local Piper voice can prepare an original WAV without consuming
+AppDeploy API credits. Piper CLI, its matching English ONNX model and configuration,
+and your own check of that model's redistribution/commercial-usage license are
+required first. Nothing is automatically downloaded or installed.
+
+```bash
+python3 worker/local_voiceover.py \
+  viralos-example-DRAFT.json /local/english-voice.onnx narration.wav \
+  --voice-license-checked
+python3 worker/render_from_plan.py \
+  viralos-example-DRAFT.json preview-with-voice.mp4 \
+  --narration narration.wav --audio-rights-checked --fit-narration
+```
+
+Piper's CLI expects model `*.onnx` and matching `*.onnx.json`. Use an English
+model with a license allowing your intended use; model availability and quality
+are **not guaranteed**, and a natural voice is not verified until tested.
+An explicit license checkbox is a user assertion, not automatic verification.
+Do not use another person's voice without permission.
+
+If the generated WAV runs longer than our 170-word-per-minute time estimate,
+`--fit-narration` proportionally adjusts frame-based scene/caption durations
+without changing vocal speed. This is still **estimated** caption timing,
+NOT speech-level synchronization. It does not convert the draft into an
+approved or published video. It creates only a local draft MP4/QC JSON.
+
+CI uses synthetic WAV tones to check AAC audio muxing and proportional scene
+retiming. A tone is not a Piper voice and should never be passed off as one.
