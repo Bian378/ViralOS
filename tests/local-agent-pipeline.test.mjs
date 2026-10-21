@@ -87,7 +87,7 @@ test('stops without retries if an agent returns malformed or risky structure',as
 test('invalid final text is rejected by the real Shorts scene-plan constraints',async()=>{
   const inference=async ({role})=>JSON.stringify({
     summary:'Some draft',claimsToVerify:[],
-    ...(role==='research'?{}:{proposedScript:role==='manager'?'Only five words here now.':fixture}),
+    ...(role==='research'?{}:{proposedScript:role==='manager'?Array(15).fill('placeholder').join(' '):fixture}),
   });
   await assert.rejects(runLocalAgents({...input,inference}),/80–150/);
 });

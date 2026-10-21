@@ -9,7 +9,7 @@ import { makeLocalDraftPlan } from './create_draft_plan.mjs';
 
 const ROLES = ['creative', 'research', 'quality', 'manager'];
 const LOOPBACK = 'http://127.0.0.1:11434/api/generate';
-const MODEL_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.:/-]{0,100}$/;
+const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,80}(?:\/[A-Za-z0-9][A-Za-z0-9_.-]{0,80})?(?::[A-Za-z0-9][A-Za-z0-9_.-]{0,40})?$/;
 
 export const agentRoles = Object.freeze([...ROLES]);
 
