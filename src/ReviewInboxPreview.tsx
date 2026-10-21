@@ -1,6 +1,12 @@
 import {useEffect,useState,type ChangeEvent} from 'react';
+import {api} from '@appdeploy/client';
 import {CheckCircle2,FileVideo,FileText,ShieldAlert,UploadCloud} from 'lucide-react';
 
+type ServerReviewSummary={
+  id:string;title:string;state:'awaiting_owner_review'|'changes_requested'|'video_reviewed_no_upload_permission';
+  version:number;selectedDraftRole:string|null;videoSha256:string;
+  hasUploadPermission:false;hasPublishPermission:false;
+};
 type ReviewPacket={
   schemaVersion:1;
   kind:'viralos-local-unapproved-review-item';
@@ -62,6 +68,34 @@ export default function ReviewInboxPreview(){
   const [videoMatched,setVideoMatched]=useState(false);
   const [status,setStatus]=useState('');
   const [working,setWorking]=useState(false);
+  const [remoteReviews,setRemoteReviews]=useState<ServerReviewSummary[]>([]);
+  const [serverStatus,setServerStatus]=useState('Läser din inloggade granskningskö …');
+  const [loadingServer,setLoadingServer]=useState(false);
+
+  async function reloadServerQueue(){
+    setLoadingServer(true);
+    try{
+      const result=await api.get('/api/video-reviews');
+      const data=result.data as unknown;
+      if(!isRecord(data)||!Array.isArray(data.items)||
+         data.items.length>30)throw Error('Kön gav ett oväntat svar.');
+      const items=data.items as ServerReviewSummary[];
+      if(items.some(x=>!isRecord(x)||typeof x.id!=='string'||
+          typeof x.title!=='string'||x.hasUploadPermission!==false||
+          x.hasPublishPermission!==false))
+        throw Error('Köinformationen är inte säker.');
+      setRemoteReviews(items);
+      setServerStatus(items.length?
+        'Servern hittade '+items.length+' granskningsposter. Mediaimport är ännu inte aktiverad.':
+        'Din serverkö är tom. Säker import av MP4 till privat lagring återstår.');
+    }catch{
+      setRemoteReviews([]);
+      setServerStatus('Serverkön kunde inte läsas. Lokal förhandsvisning fungerar ändå; ingen uppladdning gjordes.');
+    }finally{
+      setLoadingServer(false);
+    }
+  }
+  useEffect(()=>{void reloadServerQueue();},[]);
 
   useEffect(()=>()=>{if(video)URL.revokeObjectURL(video);},[video]);
 
@@ -115,6 +149,21 @@ export default function ReviewInboxPreview(){
     <div className="notice">
       Denna sida sparar inga filer på servern och ger inget godkännande.
       Autentiserad granskningskö och uppladdning aktiveras först efter separat backend-integration.
+    </div>
+    <div className="panel" style={{marginTop:18}}>
+      <h3>Din inloggade granskningskö</h3>
+      <p role="status">{serverStatus}</p>
+      <button className="small ghost" disabled={loadingServer} onClick={()=>void reloadServerQueue()}>
+        Uppdatera köstatus
+      </button>
+      {remoteReviews.map(item=><div key={item.id} className="feed-row" style={{marginTop:10}}>
+        <h4>{item.title}</h4>
+        <p>Status: {item.state==='awaiting_owner_review'?'Väntar på granskning':
+          item.state==='changes_requested'?'Ändringar begärda':'Granskad – uppladdning förbjuden'}</p>
+        <small>Version {item.version} · Agent: {item.selectedDraftRole||'Ej angiven'}</small>
+      </div>)}
+      <p>Ingen granskningspost får automatiskt laddas upp till YouTube.
+         Nya lokala videor kan ännu inte importeras till den privata serverkön.</p>
     </div>
     <div className="grid" style={{marginTop:20}}>
       <div className="panel">
