@@ -1035,7 +1035,9 @@ export default function App() {
             </>
           )}
 
-          {page === 'review-inbox' && <ReviewInboxPreview />}
+          {page === 'review-inbox' && <ReviewInboxPreview loadServerQueue={async()=>
+            (await api.get('/api/video-reviews')).data
+          } />}
 
           {page === 'calendar' && (
             <>

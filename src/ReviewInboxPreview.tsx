@@ -1,5 +1,4 @@
 import {useEffect,useState,type ChangeEvent} from 'react';
-import {api} from '@appdeploy/client';
 import {CheckCircle2,FileVideo,FileText,ShieldAlert,UploadCloud} from 'lucide-react';
 
 type ServerReviewSummary={
@@ -62,7 +61,7 @@ async function safeLocalReviewObject(data:unknown):Promise<ReviewPacket>{
   return data as unknown as ReviewPacket;
 }
 
-export default function ReviewInboxPreview(){
+export default function ReviewInboxPreview({loadServerQueue}:{loadServerQueue:()=>Promise<unknown>}){
   const [packet,setPacket]=useState<ReviewPacket|null>(null);
   const [video,setVideo]=useState<string|null>(null);
   const [videoMatched,setVideoMatched]=useState(false);
@@ -75,8 +74,7 @@ export default function ReviewInboxPreview(){
   async function reloadServerQueue(){
     setLoadingServer(true);
     try{
-      const result=await api.get('/api/video-reviews');
-      const data=result.data as unknown;
+      const data=await loadServerQueue();
       if(!isRecord(data)||!Array.isArray(data.items)||
          data.items.length>30)throw Error('Kön gav ett oväntat svar.');
       const items=data.items as ServerReviewSummary[];
