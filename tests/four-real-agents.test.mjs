@@ -41,9 +41,9 @@ test('intermediate source is marked untrusted and research stage receives the fi
   const {calls,invoke}=fake();
   await runFourRealAgents({topic,sourceUrl,explicitLocalConsent:true,invoke});
   assert.match(calls[1].prompt,/NO web, browser or research access/);
-  assert.match(calls[1].prompt,/DRAFT TEXT \(untrusted\):/);
+  assert.match(calls[1].prompt,/DRAFT TEXT EXCERPT \(untrusted\):/);
   assert.match(calls[2].prompt,/NO_VERIFIED_FACTS/);
-  assert.match(calls[3].prompt,/Revision \(untrusted\)/);
+  assert.match(calls[3].prompt,/Revision excerpt \(untrusted\)/);
 });
 test('cannot run without consent or valid HTTPS metadata',async()=>{
   const f=fake();
@@ -115,4 +115,35 @@ test('a stage failure leaves no half-written approval or output directory',()=>s
 }));
 test('prompts refuse unknown stage roles',()=>{
   assert.throws(()=>stagePrompt({role:'publisher',topic,sourceUrl}),/Unknown/);
+});
+
+
+test('long creative and quality text is excerpted to prevent model echo loops',async()=>{
+  const veryLong=Array(300).fill('story').join(' ');
+  const calls=[];
+  const final=script;
+  await runFourRealAgents({topic,sourceUrl,explicitLocalConsent:true,invoke:async({role,prompt})=>{
+    calls.push({role,prompt});
+    return role==='creative'||role==='quality'?veryLong:
+      role==='research'?'HUMAN REVIEW REQUIRED':final;
+  }});
+  const qualityPrompt=calls.find(c=>c.role==='quality').prompt;
+  const managerPrompt=calls.find(c=>c.role==='manager').prompt;
+  assert.match(qualityPrompt,/EXCERPT ONLY/);
+  assert.match(managerPrompt,/EXCERPT ONLY/);
+  assert.ok(qualityPrompt.split(/story/g).length<145);
+  assert.ok(managerPrompt.split(/story/g).length<145);
+});
+test('research inference has a smaller local token budget than script stages',async()=>{
+  const responses=[];
+  for(const role of ROLES){
+    let args;
+    await requestRealLocalAgent({role,prompt:'Original English story',fetchImpl:async(url,req)=>{
+      args=JSON.parse(req.body);
+      return {ok:true,text:async()=>JSON.stringify({message:{content:'safe'}})};
+    }});
+    responses.push({role,tokens:args.options.num_predict});
+  }
+  assert.equal(responses.find(x=>x.role==='research').tokens,120);
+  assert.ok(responses.filter(x=>x.role!=='research').every(x=>x.tokens===260));
 });
