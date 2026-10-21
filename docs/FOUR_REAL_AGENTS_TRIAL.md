@@ -102,3 +102,17 @@ responsibilities (draft creation, claim flagging, concise quality edits,
 final validation) before spending more GitHub-hosted runner minutes.
 Prefer hardware installed on the user's own machine or an explicitly
 budget-approved compute environment for ongoing experiments.
+
+## Deterministic format-valid upstream fallback (development)
+
+The editor now keeps the **first format-valid script by priority**:
+manager > quality > creative. All original outputs remain in the audit.
+This does not use a model to score creativity or check factual accuracy.
+When a manager rewrites an otherwise valid draft into 19 words, a valid
+earlier draft may be selected instead; if all drafts fail, NO video.
+
+Every selected draft has SHA-256 lineage that is checked against its
+serialized storyboard before the optional kinetic video renderer runs.
+The fallback is simulated in CI using an archived 80-word real Qwen2.5
+draft; no new full real-four-agent content success has yet been proven.
+See docs/EDITORIAL_DRAFT_SELECTION.md.
