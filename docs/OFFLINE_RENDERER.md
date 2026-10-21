@@ -60,3 +60,25 @@ CI uses synthetic WAV tones to check AAC audio muxing and proportional scene
 retiming. A tone is not a Piper voice and should never be passed off as one.
 
 The current OHF-Voice Piper CLI is used: `python -m piper -m name --data-dir /already/local/voices -f output.wav -- "English script"`. Piper is not bundled or installed automatically. The model license is a separate operator responsibility.
+
+## Optional animated procedural Shorts preview
+
+Render with `--kinetic-preview` to add an animated moving radial gradient,
+scene counter, subtle title drift, fade-in captions and lightweight graphic
+accents. It uses only **local FFmpeg source filters and DejaVu Sans**, without
+any external images, licensed stock clips, scene-generation AI or downloads:
+
+    python3 worker/build_short_draft.py source-DRAFT.json kinetic-draft --silent-preview --kinetic-preview
+
+Or with an already owned/licensed WAV voice file:
+
+    python3 worker/build_short_draft.py source-DRAFT.json kinetic-voice-draft \
+      --narration narration.wav --audio-rights-checked --kinetic-preview
+
+Default videos use the original simple typography style and are unchanged.
+The package receipt and MP4 QC mark `visualStyle: kinetic_procedural` or
+`typography_static`, and integrity verification rejects mismatches.
+The scene motion is a procedural **2D design**, NOT AI-generated 3D film or
+copyright-cleared real-world video. Caption timing is still approximate.
+All results remain unapproved DRAFTS; commercial Piper voice licenses need
+their own legal review before a public/monetized short.
