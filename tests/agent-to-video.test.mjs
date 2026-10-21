@@ -218,3 +218,36 @@ test('missing approval lock in report is rejected even with format-valid draft',
   assert.equal(steps.length,0);
   assert.equal(existsSync(destination),false);
 }));
+
+
+test('skipped generative manager still renders selected quality script in mock provider test',()=>inFolder(async root=>{
+  const calls=[],steps=[];
+  const result=await buildAgentVideoPreview({
+    ...base(root),model:'qwen2.5:1.5b-instruct-q4_K_M',
+    realChatAgents:true,managerPolicy:'preserve-valid',
+    kineticPreview:true,pythonRunner:simulatePython(steps),
+    chatAgentRunner:args=>runFourRealAgents({
+      ...args,invoke:async({role})=>{
+        calls.push(role);
+        return role==='research'?'NO_VERIFIED_FACTS. HUMAN_REVIEW_REQUIRED.':fixture;
+      }
+    })
+  });
+  assert.deepEqual(calls,['creative','research','quality']);
+  assert.equal(result.agentCount,3);
+  assert.equal(result.modelCalls,3);
+  assert.equal(result.managerModelCallSkipped,true);
+  assert.equal(result.selectedDraftRole,'quality');
+  assert.equal(result.manuscriptFormatPassed,true);
+  assert.ok(steps[0].includes('--kinetic-preview'));
+  assert.equal(result.publicReleaseAllowed,false);
+});
+
+test('cannot request manager preservation using legacy inference path',()=>inFolder(async root=>{
+  const mock=fakeInfer();
+  await assert.rejects(buildAgentVideoPreview({
+    ...base(root),inference:mock.inference,
+    managerPolicy:'preserve-valid',pythonRunner:simulatePython([]),
+  }),/requires the four-agent chat path/);
+  assert.deepEqual(mock.order,[]);
+});

@@ -149,3 +149,83 @@ test('research inference has a smaller local token budget than script stages',as
   assert.equal(responses.find(x=>x.role==='research').tokens,120);
   assert.ok(responses.filter(x=>x.role!=='research').every(x=>x.tokens===260));
 });
+
+
+test('preserve-valid manager policy stops after three model calls when quality has valid text',async()=>{
+  const roles=[];
+  const result=await runFourRealAgents({
+    topic,sourceUrl,explicitLocalConsent:true,managerPolicy:'preserve-valid',
+    invoke:async({role})=>{
+      roles.push(role);
+      return role==='research'?'NO_VERIFIED_FACTS. HUMAN_REVIEW_REQUIRED.':script;
+    },
+  });
+  assert.deepEqual(roles,['creative','research','quality']);
+  assert.equal(result.report.modelCalls,3);
+  assert.equal(result.report.managerModelCallSkipped,true);
+  assert.equal(result.report.managerDecision,'deterministic_preserve_valid_draft');
+  assert.equal(result.report.selectedDraftRole,'quality');
+  assert.equal(result.report.selectedWordCount,80);
+  assert.equal(result.report.finalWordCount,null);
+  assert.equal(result.report.humanApproved,false);
+  assert.equal(result.report.publicReleaseAuthorized,false);
+  assert.equal(result.draftManifest.notForPublication,true);
+});
+
+test('preserve-valid manager policy still makes fourth real call if all earlier scripts fail',async()=>{
+  const roles=[];
+  const result=await runFourRealAgents({
+    topic,sourceUrl,explicitLocalConsent:true,managerPolicy:'preserve-valid',
+    invoke:async({role})=>{
+      roles.push(role);
+      return role==='research'?'UNVERIFIED':role==='manager'?script:'too short';
+    },
+  });
+  assert.deepEqual(roles,['creative','research','quality','manager']);
+  assert.equal(result.report.modelCalls,4);
+  assert.equal(result.report.managerModelCallSkipped,false);
+  assert.equal(result.report.managerDecision,'generative_manager_rescue_attempt');
+  assert.equal(result.report.selectedDraftRole,'manager');
+  assert.equal(result.report.selectedWordCount,80);
+  assert.ok(result.draftManifest);
+});
+
+test('preserve-valid manager mode does not claim approval with only invalid manuscripts',async()=>{
+  const roles=[];
+  const result=await runFourRealAgents({
+    topic,sourceUrl,explicitLocalConsent:true,managerPolicy:'preserve-valid',
+    invoke:async({role})=>{roles.push(role);return role==='research'?'UNVERIFIED':'short';},
+  });
+  assert.equal(roles.length,4);
+  assert.equal(result.report.status,'MANUSCRIPT_REJECTED_BY_VALIDATOR');
+  assert.equal(result.draftManifest,null);
+  assert.equal(result.report.modelCalls,4);
+  assert.equal(result.report.publicReleaseAuthorized,false);
+});
+
+test('manager policy must be known before invoking ANY model',async()=>{
+  const roles=[];
+  await assert.rejects(runFourRealAgents({
+    topic,sourceUrl,explicitLocalConsent:true,managerPolicy:'auto-publish',
+    invoke:async({role})=>{roles.push(role);return script;}
+  }),/Unknown manager policy/);
+  assert.equal(roles.length,0);
+});
+
+test('local save returns 3-call receipt without fabricating a manager inference',()=>sandbox(async root=>{
+  const destination=join(root,'preserved');
+  const saved=await saveFourAgentReview({
+    outputDir:destination,topic,sourceUrl,explicitLocalConsent:true,
+    managerPolicy:'preserve-valid',
+    run:args=>runFourRealAgents({...args,invoke:async({role})=>
+      role==='research'?'NO_VERIFIED_FACTS. HUMAN_REVIEW_REQUIRED.':script}),
+  });
+  assert.equal(saved.modelCalls,3);
+  assert.equal(saved.managerModelCallSkipped,true);
+  assert.equal(saved.selectedDraftRole,'quality');
+  assert.equal(saved.validDraft,true);
+  const report=JSON.parse(readFileSync(join(destination,'four-agent-review-UNVERIFIED.json'),'utf8'));
+  assert.deepEqual(report.rolesExecuted,['creative','research','quality']);
+  assert.equal(report.realModelUsed,false);
+  assert.ok(existsSync(join(destination,'source-DRAFT.json')));
+});

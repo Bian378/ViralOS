@@ -26,7 +26,9 @@ export async function saveFourAgentReview({
        !Array.isArray(expected)||expected.length!==count||
        !expected.every((role,i)=>role===['creative','research','quality','manager'][i])||
        (count===3&&(managerPolicy!=='preserve-valid'||report.managerModelCallSkipped!==true||
-         report.selectedDraftRole===null))||
+         !['creative','quality'].includes(report.selectedDraftRole)||
+         report.manuscriptFormatPassed!==true))||
+       (count===4&&report.managerModelCallSkipped===true)||
        (managerPolicy==='generate'&&count!==4)||
        report?.humanApproved!==false||report?.published!==false||
        report?.publicReleaseAuthorized!==false){

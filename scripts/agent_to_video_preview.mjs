@@ -49,6 +49,7 @@ export async function buildAgentVideoPreview({
   narration=null, audioRightsChecked=false,
   inference,
   realChatAgents=false,
+  managerPolicy='generate',
   chatAgentRunner=runFourRealAgents,
   pythonRunner=offlinePython,
 }){
@@ -58,8 +59,11 @@ export async function buildAgentVideoPreview({
   });
   if(realChatAgents&&(inference||model!==REAL_CHAT_MODEL))
     throw new Error('The real chat path uses exactly Qwen2.5 1.5B and no legacy inference adapter.');
+  if(!['generate','preserve-valid'].includes(managerPolicy)||
+     (!realChatAgents&&managerPolicy!=='generate'))
+    throw new Error('Manager preservation requires the four-agent chat path.');
   const {report,draftManifest}=realChatAgents
-    ?await chatAgentRunner({topic,sourceUrl,explicitLocalConsent})
+    ?await chatAgentRunner({topic,sourceUrl,explicitLocalConsent,managerPolicy})
     :await runLocalAgents({
       topic,sourceUrl,model,explicitLocalConsent,
       ...(inference?{inference}:{}),
@@ -108,6 +112,9 @@ export async function buildAgentVideoPreview({
     return {
       directory:root,
       agentCount:(report.rolesExecuted||report.rolesRun).length,
+      modelCalls:report.modelCalls??(report.rolesExecuted||report.rolesRun).length,
+      managerPolicy:realChatAgents?managerPolicy:'not_applicable',
+      managerModelCallSkipped:Boolean(report.managerModelCallSkipped),
       realModelUsed:report.realModelUsed,
       selectedDraftRole:report.selectedDraftRole??null,
       selectedDraftSha256:report.selectedDraftSha256??null,
@@ -130,7 +137,7 @@ export async function buildAgentVideoPreview({
 
 function options(argv){
   const options={};
-  const flags=new Set(['--allow-local-inference','--silent-preview','--audio-rights-checked','--kinetic-preview','--real-four-chat']);
+  const flags=new Set(['--allow-local-inference','--silent-preview','--audio-rights-checked','--kinetic-preview','--real-four-chat','--preserve-valid-manager']);
   const values=new Set(['--topic','--source-url','--model','--out-dir','--narration']);
   for(let i=0;i<argv.length;i++){
     const k=argv[i];
@@ -157,6 +164,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
       silentPreview:a['--silent-preview']===true,
       kineticPreview:a['--kinetic-preview']===true,
       realChatAgents:a['--real-four-chat']===true,
+      managerPolicy:a['--preserve-valid-manager']?'preserve-valid':'generate',
       narration:a['--narration']||null,
       audioRightsChecked:a['--audio-rights-checked']===true,
     });
