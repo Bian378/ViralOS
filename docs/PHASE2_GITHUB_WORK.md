@@ -218,3 +218,24 @@ CI uses two SYNTHETIC popularity snapshots and MOCK local-model outputs,
 but FFmpeg renders an ACTUAL H.264 MP4 and verifies it on disk.
 CI tests cover stale/mismatched snapshots, single-reading limitations,
 manual choice and consent, without AppDeploy credits or YouTube API usage.
+
+## Optional kinetic original visual treatment (new)
+
+- `worker/kinetic_style.py` provides local FFmpeg-only radial animated
+  gradient (half-resolution source scaled to 1080×1920), scene counters,
+  drifting original headline typography, captions, subtle color and geometry.
+- `worker/render_from_plan.py --kinetic-preview` and
+  `worker/build_short_draft.py ... --kinetic-preview` select the new style.
+  Default static typography remains unchanged.
+- `scripts/agent_to_video_preview.mjs --kinetic-preview` and
+  `scripts/run_saved_trend_to_preview.mjs --kinetic-preview` forward the
+  flag along the existing explicit-consent local agent production chain.
+- The style adds no external media and does not copy viral source clips.
+  It is **not** AI-generated photorealistic B-roll, original 3D film footage,
+  real speech-aligned subtitles, a license-clearance service, or permission
+  for public release.
+- MP4 QC and draft integrity receipts bind the chosen style and flag
+  any mismatches, in addition to existing hashes and unapproved states.
+- Regression tests render a true procedural MP4 and preserve the original
+  static workflow; a real 27.9-second Qwen2.5-authored/Piper-voiced review
+  video was also rendered outside AppDeploy for user assessment.
