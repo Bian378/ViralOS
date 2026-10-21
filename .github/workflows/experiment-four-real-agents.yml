@@ -44,6 +44,21 @@ jobs:
             --source-url https://example.org/viralos-original-fiction \
             --out-dir "$RUNNER_TEMP/real-four" --allow-four-local-calls
           test -s "$RUNNER_TEMP/real-four/four-agent-review-UNVERIFIED.json"
+          node --input-type=module -e '
+            import {readFileSync,appendFileSync} from "node:fs";
+            const p=process.env.RUNNER_TEMP+"/real-four/four-agent-review-UNVERIFIED.json";
+            const v=JSON.parse(readFileSync(p,"utf8"));
+            const good=v.status==="UNVERIFIED_MANUSCRIPT_READY_FOR_HUMAN_REVIEW";
+            const lines=[
+              "## ViralOS real 4-agent experiment",
+              "Four local Ollama model calls completed: "+(v.modelCalls===4),
+              "Format-approved manuscript: "+good,
+              "Final word count: "+v.finalWordCount,
+              "Result: "+v.status,
+              "Not fact-checked, licensed or authorized for public upload."
+            ];
+            appendFileSync(process.env.GITHUB_STEP_SUMMARY,lines.join("\n")+"\n");
+          '
       - name: If final storyboard passed, render genuine draft with kinetic style
         run: |
           if test -s "$RUNNER_TEMP/real-four/source-DRAFT.json"; then
