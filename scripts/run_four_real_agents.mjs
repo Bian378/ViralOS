@@ -35,6 +35,10 @@ export async function saveFourAgentReview({
     }
     return {status:report.status,roles:report.rolesExecuted,
       modelCalls:4,validDraft:Boolean(draftManifest),
+      selectedDraftRole:report.selectedDraftRole??null,
+      selectedWordCount:report.selectedWordCount??null,
+      selectedDraftSha256:report.selectedDraftSha256??null,
+      formatOnlyValidation:Boolean(report.manuscriptFormatPassed),
       outputFolder:destination,appDeployCreditsUsed:0,
       publicationAllowed:false};
   }catch(e){
