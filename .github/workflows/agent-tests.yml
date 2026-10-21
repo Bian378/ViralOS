@@ -7,6 +7,7 @@ on:
       - 'src/manager.ts'
       - 'src/shorts-production-plan.ts'
       - 'src/subtitle-export.ts'
+      - 'src/private-upload-gate.ts'
       - 'src/ShortsPlanPreview.tsx'
       - 'src/App.tsx'
       - 'worker/**'
@@ -28,7 +29,7 @@ jobs:
         with:
           node-version: '22.16.0'
       - name: Test agent safety contracts and measured YouTube velocity
-        run: node --experimental-strip-types --test tests/agent-workflow.test.mjs tests/manager-momentum.test.mjs tests/shorts-production-plan.test.mjs tests/subtitle-export.test.mjs
+        run: node --experimental-strip-types --test tests/agent-workflow.test.mjs tests/manager-momentum.test.mjs tests/shorts-production-plan.test.mjs tests/subtitle-export.test.mjs tests/private-upload-gate.test.mjs
       - name: Install free FFmpeg and DejaVu Sans for real preview smoke test
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
       - name: Python renderer contract tests (offline)

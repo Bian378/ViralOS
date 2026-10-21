@@ -87,3 +87,20 @@ AppDeploy build, authenticated QA, rights/cost controls, and owner approval.
 - UI download buttons appear only for a saved manuscript version matching the editor content, never for unsaved edits.
 - JSON manifest explicitly records `notForPublication: true`, unverified rights, media not generated, voice not generated, and captions estimated.
 - Extra regression coverage in `tests/subtitle-export.test.mjs`; no external API or paid AI calls.
+
+## Publication-safety architecture, private upload only
+New `src/private-upload-gate.ts` is pure, with no network/YouTube calls.
+It binds a completed operator-reviewed MP4 with SHA-256, file size, duration,
+video format, audio present, caption and rights self-attestations, exact manuscript
+revision, and authenticated owner identity.
+Two distinct **human actions** are required:
+1. exact final MP4 review, matching its SHA-256 and script revision;
+2. a separate private-only upload authorization for an exact YouTube channel and
+   upload title/description. No public release authorization is exposed.
+Changing a manuscript revision, file bytes or channel invalidates the grant,
+and revocation clears it. This is a preparatory contract, NOT wired to
+AppDeploy, OAuth or YouTube. A later backend must verify identity via
+server-side auth, compute SHA from actual stored bytes, maintain CAS transaction
+state and use the immutable approved metadata. Rights self-attestation is not
+independent legal verification. No uploaded file is safe solely because flags
+were submitted.
