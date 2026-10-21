@@ -4,7 +4,7 @@
  * The independent review agent can ONLY identify claims requiring human checking.
  * No final draft is approved or render-eligible until deterministic validation.
  */
-import { inspectOriginalScript } from './real_qwen25_short.mjs';
+import { chooseValidatedEditorialDraft } from './editorial_candidate_selection.mjs';
 import { makeLocalDraftPlan } from './create_draft_plan.mjs';
 
 export const MODEL = 'qwen2.5:1.5b-instruct-q4_K_M';
@@ -131,13 +131,18 @@ export async function runFourRealAgents({
     if(role==='research') inputs.review=text.slice(0,600);
     if(role==='quality') inputs.revisedScript=text;
   }
-  // Model is never allowed to claim its own final pass. We check the real storyboard.
-  const proposal=inspectOriginalScript(stages[3].content);
-  let manifest=null,reason=proposal.valid?null:proposal.reason;
-  if(proposal.valid){
-    try{
+  // Preserve all original outputs. Select first format-valid stage by
+  // deterministic priority manager > quality > creative. Never rewrite text
+  // or mistake format-valid content for fact-checked/publishable content.
+  const selection=chooseValidatedEditorialDraft(stages);
+  let manifest=null;
+  let reason=selection.selectedScript?null:
+    (selection.candidateChecks.find(x=>x.role==='manager')?.reason||
+     'No agent produced a format-valid English Short.');
+  if(selection.selectedScript){
+    try {
       manifest=makeLocalDraftPlan({
-        title:topic.trim().slice(0,100),script:proposal.script,
+        title:topic.trim().slice(0,100),script:selection.selectedScript,
         sourceUrl,projectId,revision,
       });
     }catch(e){
@@ -152,8 +157,17 @@ export async function runFourRealAgents({
       status:accepted?'UNVERIFIED_MANUSCRIPT_READY_FOR_HUMAN_REVIEW':'MANUSCRIPT_REJECTED_BY_VALIDATOR',
       rolesExecuted:[...ROLES],modelCalls:4,
       stageResults:stages,
-      finalWordCount:proposal.words,
-      finalFormattingNormalized:Boolean(proposal.normalizationApplied),
+      // Final manager output and selected upstream fallback are distinct.
+      finalWordCount:stages[3].words,
+      selectedWordCount:accepted?selection.selectedWords:null,
+      finalFormattingNormalized:selection.candidateChecks.find(x=>x.role==='manager')?.normalizationApplied||false,
+      selectedDraftRole:accepted?selection.selectedRole:null,
+      selectedDraftFromPriorAgent:accepted?selection.selectedWasNotManager:false,
+      selectedDraftSha256:accepted?selection.selectedSha256:null,
+      editorialCandidateChecks:selection.candidateChecks,
+      candidateSelectionRule:selection.selectionRule,
+      manuscriptFormatPassed:accepted,
+      independentEnglishReviewPassed:false,
       rejectionReason:reason,
       claimFlagsFromUnverifiedReview:inputs.review,
       researchBrowsedInternet:false,factsIndependentlyVerified:false,
