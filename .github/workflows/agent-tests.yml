@@ -63,4 +63,6 @@ jobs:
         run: node --experimental-strip-types scripts/smoke_trend_to_preview.mjs
       - name: Archived real Qwen manuscript fallback to genuine kinetic MP4 (no inference)
         run: node --experimental-strip-types scripts/smoke_select_fallback_short.mjs
+      - name: Preserve valid manager policy with three mock stages to real kinetic MP4
+        run: node --experimental-strip-types scripts/smoke_manager_preserve_valid.mjs
 

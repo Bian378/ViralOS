@@ -116,3 +116,36 @@ serialized storyboard before the optional kinetic video renderer runs.
 The fallback is simulated in CI using an archived 80-word real Qwen2.5
 draft; no new full real-four-agent content success has yet been proven.
 See docs/EDITORIAL_DRAFT_SELECTION.md.
+
+## Optional save-one-model-call manager behavior
+
+An explicit `managerPolicy: 'preserve-valid'` mode runs CREATIVE → RESEARCH
+→ QUALITY, then checks their drafts with the existing deterministic
+storyboard format validator. When quality or creative produces a valid
+80–150-word script, the app skips calling the generative manager; the
+deterministic orchestrator selects and SHA-256-binds that draft instead.
+The report declares EXACTLY three local neural model calls, the three
+executed stages and `managerModelCallSkipped: true`. It never fabricates
+a fourth actual AI response. Human approval is still mandatory.
+
+With no valid creative or quality script, the manager makes one LAST
+generative request and there are four model calls. If all fail the
+format gate, NO MP4 is rendered. This mode is only an option; the
+original four-call behavior remains the default for compatibility.
+
+Local CLI example:
+
+    node --experimental-strip-types scripts/run_four_real_agents.mjs \
+      --topic "An original English fictional city story" \
+      --source-url https://example.org/fiction \
+      --out-dir ./review-packet --allow-four-local-calls \
+      --preserve-valid-draft
+
+Direct video path has corresponding `--real-four-chat --preserve-valid-manager`
+flags; all voice licensing and explicit local inference consent rules
+still apply. This work does not establish that the real Qwen model will
+produce a valid draft in each run or that editorial quality is adequate.
+
+GitHub CI runs a NON-NEURAL smoke with archived actual Qwen words + three
+SIMULATED agent answers, followed by a REAL kinetic FFmpeg MP4 and SHA-256
+verification. No model is installed, no YouTube keys used or channel altered.
