@@ -38,7 +38,7 @@ jobs:
           ollama pull qwen3:0.6b
       - name: Create genuine neural manuscript and validation report
         run: |
-          node scripts/experiment_real_ollama.mjs "$RUNNER_TEMP/real-model-test"
+          node --experimental-strip-types scripts/experiment_real_ollama.mjs "$RUNNER_TEMP/real-model-test"
           test -s "$RUNNER_TEMP/real-model-test/actual-ollama-output-UNVERIFIED.json"
       - name: Save only draft response and optional storyboard (no model)
         uses: actions/upload-artifact@v4
