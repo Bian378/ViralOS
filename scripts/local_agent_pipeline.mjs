@@ -161,7 +161,7 @@ export async function runLocalAgents({
       factsVerified: false,
       mediaRightsVerified: false,
       creditsChargedByAppDeploy: 0,
-      realModelUsed: true, // only applicable if inference was the actual local provider
+      realModelUsed: inference === callLocalOllama, // mocks cannot be reported as real AI runs
       published: false,
       uploadAuthorized: false,
     },
