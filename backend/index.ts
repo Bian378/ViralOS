@@ -9,6 +9,7 @@ import {
   increment,
 } from '@appdeploy/sdk';
 import { createQueue } from './queue';
+import {createReviewInboxRoutes} from './review-routes';
 import { buildManagerPlan, type ManagerPlan } from '../src/manager';
 import { buildEditorialRun, withHumanChecks, type EditorialRun } from '../src/editorial';
 import { decideScriptReview, revisionOf, sameContent } from '../src/review';
@@ -398,6 +399,7 @@ const queue = createQueue({ stateFor, runCollect, runDraft });
 export const processQueue = queue.tick;
 export const handler = router({
   ...queue.routes,
+  ...createReviewInboxRoutes(),
   'GET /api/_healthcheck': [async () => json({ ok: true })],
   'GET /api/system-check/simulated-503': [
     requireAuth(),
