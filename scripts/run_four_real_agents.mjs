@@ -10,7 +10,7 @@ import {runFourRealAgents} from './four_real_agents.mjs';
 
 export async function saveFourAgentReview({
   outputDir,topic,sourceUrl,explicitLocalConsent=false,
-  run=runFourRealAgents,
+  managerPolicy='generate',run=runFourRealAgents,
 }){
   if(typeof outputDir!=='string'||!outputDir.trim())
     throw Error('An explicit new output folder is required.');
@@ -19,8 +19,15 @@ export async function saveFourAgentReview({
   const destination=resolve(outputDir);
   mkdirSync(destination,{recursive:false});
   try{
-    const {report,draftManifest}=await run({topic,sourceUrl,explicitLocalConsent:true});
-    if(report?.rolesExecuted?.length!==4||report?.modelCalls!==4||
+    const {report,draftManifest}=await run({topic,sourceUrl,explicitLocalConsent:true,managerPolicy});
+    const count=report?.modelCalls;
+    const expected=report?.rolesExecuted;
+    if(!Number.isSafeInteger(count)||(count!==3&&count!==4)||
+       !Array.isArray(expected)||expected.length!==count||
+       !expected.every((role,i)=>role===['creative','research','quality','manager'][i])||
+       (count===3&&(managerPolicy!=='preserve-valid'||report.managerModelCallSkipped!==true||
+         report.selectedDraftRole===null))||
+       (managerPolicy==='generate'&&count!==4)||
        report?.humanApproved!==false||report?.published!==false||
        report?.publicReleaseAuthorized!==false){
       throw Error('Unexpected model-run approval or stage receipt.');
@@ -34,7 +41,8 @@ export async function saveFourAgentReview({
         JSON.stringify(draftManifest,null,2)+'\n',{flag:'wx'});
     }
     return {status:report.status,roles:report.rolesExecuted,
-      modelCalls:4,validDraft:Boolean(draftManifest),
+      modelCalls:count,managerPolicy,managerModelCallSkipped:count===3,
+      validDraft:Boolean(draftManifest),
       selectedDraftRole:report.selectedDraftRole??null,
       selectedWordCount:report.selectedWordCount??null,
       selectedDraftSha256:report.selectedDraftSha256??null,
@@ -50,10 +58,13 @@ export async function saveFourAgentReview({
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
   const args=process.argv.slice(2);
   const required=['--topic','--source-url','--out-dir','--allow-four-local-calls'];
+  const optional=['--preserve-valid-draft'];
   const config={};
   for(let i=0;i<args.length;i++){
-    if(!required.includes(args[i])||args[i] in config)throw Error('Unknown/duplicate option');
-    if(args[i]==='--allow-four-local-calls'){config[args[i]]=true;continue;}
+    if(![...required,...optional].includes(args[i])||args[i] in config)throw Error('Unknown/duplicate option');
+    if(args[i]==='--allow-four-local-calls'||args[i]==='--preserve-valid-draft'){
+      config[args[i]]=true;continue;
+    }
     if(++i>=args.length||args[i].startsWith('--'))throw Error('Missing argument');
     config[args[i-1]]=args[i];
   }
@@ -61,6 +72,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
   const answer=await saveFourAgentReview({
     topic:config['--topic'],sourceUrl:config['--source-url'],
     outputDir:config['--out-dir'],explicitLocalConsent:true,
+    managerPolicy:config['--preserve-valid-draft']?'preserve-valid':'generate',
   });
   process.stdout.write(JSON.stringify(answer)+'\n');
 }
