@@ -9,6 +9,8 @@ on:
       - 'src/subtitle-export.ts'
       - 'src/private-upload-gate.ts'
       - 'src/ShortsPlanPreview.tsx'
+      - 'src/ReviewInboxPreview.tsx'
+      - 'src/review-inbox.ts'
       - 'src/App.tsx'
       - 'worker/**'
       - 'scripts/**'

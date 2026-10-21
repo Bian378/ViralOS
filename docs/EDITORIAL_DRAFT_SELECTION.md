@@ -70,3 +70,33 @@ explicit unverified factual/rights/voice/caption quality statuses,
 and owner review pending. The item cannot authorize private YouTube
 upload or public release. A malicious video hash, altered script SHA
 or already-authorized report fails packet creation.
+
+## Review Inbox – local UI prototype plus server-side contract
+
+The ViralOS GitHub development branch now adds a **Videogranskning**
+navigation item under **Resultat** and a React component
+`src/ReviewInboxPreview.tsx`. The browser can open a local
+`review-queue-item-DRAFT.json`, validate the original English script
+against its SHA-256, then open a local MP4 file and independently hash
+its real bytes. Only if the hash matches may the file be played.
+This is a browser-only, in-memory PREVIEW; it never uploads a file
+or sends a queue item to any server or Google/YouTube API.
+
+`src/review-inbox.ts` separately provides a future server-only,
+authentication-BOUND queue contract with owner-scoped import,
+server-verified MP4 hash, revision-pinned owner decisions and
+compare-and-swap semantics. The caller MUST derive owner ID from verified
+server auth and hash the stored MP4 bytes itself; untrusted browser
+payloads may NOT supply these privileged values. A real database
+transaction and backend authorization are NOT yet implemented.
+
+Editorial decisions 'video_reviewed_no_upload_permission' and
+'changes_requested' never authorize YouTube upload or public release.
+Even after full owner checklist review, separate exact-video consent
+is still needed through the existing `src/private-upload-gate.ts`
+and a not-yet-implemented, authenticated YouTube OAuth backend.
+
+Before deploying: implement scoped persistent storage + actual owner
+session enforcement, media digest verification, CSRF controls and
+atomic revision/version CAS; connect the real queue to the dashboard;
+test tenancy isolation and run UI regression in the AppDeploy environment.

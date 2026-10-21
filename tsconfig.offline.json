@@ -10,7 +10,8 @@
     "src/manager.ts",
     "src/shorts-production-plan.ts",
     "src/subtitle-export.ts",
-    "src/private-upload-gate.ts"
+    "src/private-upload-gate.ts",
+    "src/ReviewInboxPreview.tsx"
   ],
   "include": [],
   "exclude": [
