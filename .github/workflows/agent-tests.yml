@@ -5,6 +5,7 @@ on:
       - 'src/agent-workflow.ts'
       - 'src/momentum.ts'
       - 'src/manager.ts'
+      - 'src/shorts-production-plan.ts'
       - 'tests/*.test.mjs'
       - 'package.json'
       - '.github/workflows/agent-tests.yml'
@@ -23,4 +24,4 @@ jobs:
         with:
           node-version: '22.16.0'
       - name: Test agent safety contracts and measured YouTube velocity
-        run: node --experimental-strip-types --test tests/agent-workflow.test.mjs tests/manager-momentum.test.mjs
+        run: node --experimental-strip-types --test tests/agent-workflow.test.mjs tests/manager-momentum.test.mjs tests/shorts-production-plan.test.mjs
