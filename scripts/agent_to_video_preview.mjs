@@ -43,7 +43,7 @@ function offlinePython(args) {
 export async function buildAgentVideoPreview({
   topic,sourceUrl,model, destination,
   explicitLocalConsent=false,
-  silentPreview=false,
+  silentPreview=false, kineticPreview=false,
   narration=null, audioRightsChecked=false,
   inference,
   pythonRunner=offlinePython,
@@ -67,6 +67,7 @@ export async function buildAgentVideoPreview({
       'worker/build_short_draft.py',join(root,'source-DRAFT.json'),preview,
       ...(silentPreview?['--silent-preview']:
         ['--narration',resolve(narration),'--audio-rights-checked']),
+      ...(kineticPreview?['--kinetic-preview']:[]),
     ];
     const renderReceipt=pythonRunner(create);
     if(!renderReceipt||renderReceipt.status!=='UNAPPROVED_DRAFT_LOCAL_ONLY')
@@ -85,6 +86,7 @@ export async function buildAgentVideoPreview({
       factsChecked:false,licensedMediaVerified:false,
       audioGeneratedByAI:false,
       captionsSynchronizedToSpeech:false,
+      visualStyle:kineticPreview?'kinetic_procedural':'typography_static',
       uploadAllowed:false,publicReleaseAllowed:false,
       appDeployCreditsUsed:0,
     };
@@ -96,7 +98,7 @@ export async function buildAgentVideoPreview({
 
 function options(argv){
   const options={};
-  const flags=new Set(['--allow-local-inference','--silent-preview','--audio-rights-checked']);
+  const flags=new Set(['--allow-local-inference','--silent-preview','--audio-rights-checked','--kinetic-preview']);
   const values=new Set(['--topic','--source-url','--model','--out-dir','--narration']);
   for(let i=0;i<argv.length;i++){
     const k=argv[i];
@@ -121,6 +123,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
       model:a['--model'],destination:a['--out-dir'],
       explicitLocalConsent:a['--allow-local-inference']===true,
       silentPreview:a['--silent-preview']===true,
+      kineticPreview:a['--kinetic-preview']===true,
       narration:a['--narration']||null,
       audioRightsChecked:a['--audio-rights-checked']===true,
     });

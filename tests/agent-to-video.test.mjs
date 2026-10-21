@@ -124,3 +124,18 @@ test('no silent publishing or implicit voice generation is represented in report
   assert.equal(result.licensedMediaVerified,false);
   assert.equal(result.appDeployCreditsUsed,0);
 }));
+
+
+test('optional procedural motion flag reaches offline video worker without changing publication rules',()=>inFolder(async root=>{
+  const mock=fakeInfer(),steps=[];
+  const result=await buildAgentVideoPreview({
+    ...base(root),
+    kineticPreview:true,
+    inference:mock.inference,pythonRunner:simulatePython(steps),
+  });
+  assert.ok(steps[0].includes('--kinetic-preview'));
+  assert.equal(result.visualStyle,'kinetic_procedural');
+  assert.equal(result.uploadAllowed,false);
+  assert.equal(result.publicReleaseAllowed,false);
+  assert.equal(result.realModelUsed,false);
+}));

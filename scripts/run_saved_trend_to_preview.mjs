@@ -23,7 +23,7 @@ function savedSnapshot(path){
 
 export async function runSavedTrendToPreview({
   latest,earlier=null,videoId,model,destination,
-  allowLocalInference=false,silentPreview=false,
+  allowLocalInference=false,silentPreview=false,kineticPreview=false,
   narration=null,audioRightsChecked=false,
   inference,pythonRunner,asOf=new Date().toISOString(),
 }){
@@ -37,7 +37,7 @@ export async function runSavedTrendToPreview({
   const result=await buildAgentVideoPreview({
     topic:candidate.topic,sourceUrl:candidate.sourceUrl,
     model,destination,
-    explicitLocalConsent:true,silentPreview,narration,audioRightsChecked,
+    explicitLocalConsent:true,silentPreview,kineticPreview,narration,audioRightsChecked,
     ...(inference?{inference}:{}),
     ...(pythonRunner?{pythonRunner}:{}),
   });
@@ -57,7 +57,7 @@ export async function runSavedTrendToPreview({
 
 function flags(argv){
   const args={};
-  const boolean=new Set(['--allow-local-inference','--silent-preview','--audio-rights-checked']);
+  const boolean=new Set(['--allow-local-inference','--silent-preview','--audio-rights-checked','--kinetic-preview']);
   const valued=new Set(['--latest','--earlier','--video-id','--model','--out-dir','--narration']);
   for(let i=0;i<argv.length;i++){
     const key=argv[i];
@@ -87,6 +87,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
       destination:args['--out-dir'],
       allowLocalInference:args['--allow-local-inference']===true,
       silentPreview:args['--silent-preview']===true,
+      kineticPreview:args['--kinetic-preview']===true,
       narration:args['--narration']??null,
       audioRightsChecked:args['--audio-rights-checked']===true,
     });
