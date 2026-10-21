@@ -241,7 +241,7 @@ test('skipped generative manager still renders selected quality script in mock p
   assert.equal(result.manuscriptFormatPassed,true);
   assert.ok(steps[0].includes('--kinetic-preview'));
   assert.equal(result.publicReleaseAllowed,false);
-});
+}));
 
 test('cannot request manager preservation using legacy inference path',()=>inFolder(async root=>{
   const mock=fakeInfer();
@@ -250,4 +250,4 @@ test('cannot request manager preservation using legacy inference path',()=>inFol
     managerPolicy:'preserve-valid',pythonRunner:simulatePython([]),
   }),/requires the four-agent chat path/);
   assert.deepEqual(mock.order,[]);
-});
+}));

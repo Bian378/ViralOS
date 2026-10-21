@@ -228,4 +228,4 @@ test('local save returns 3-call receipt without fabricating a manager inference'
   assert.deepEqual(report.rolesExecuted,['creative','research','quality']);
   assert.equal(report.realModelUsed,false);
   assert.ok(existsSync(join(destination,'source-DRAFT.json')));
-});
+}));
