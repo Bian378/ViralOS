@@ -149,7 +149,8 @@ export async function runFourRealAgents({
       assetRightsVerified:false,humanApproved:false,
       privateUploadAuthorized:false,publicReleaseAuthorized:false,
       published:false,appDeployCreditsUsed:0,
-      provider:'local_ollama_only',
+      provider:invoke===requestRealLocalAgent?'local_ollama_only':'injected_test_provider',
+      realModelUsed:invoke===requestRealLocalAgent,
     },
     draftManifest:manifest,
   };

@@ -32,6 +32,7 @@ test('exact creative research quality manager order with actual storyboard accep
   assert.equal(output.draftManifest.notForPublication,true);
   assert.equal(output.draftManifest.scenePlan.scenes.length,5);
   assert.equal(output.report.researchBrowsedInternet,false);
+  assert.equal(output.report.realModelUsed,false);
   assert.equal(output.report.factsIndependentlyVerified,false);
   assert.equal(output.report.humanApproved,false);
   assert.equal(output.report.publicReleaseAuthorized,false);
