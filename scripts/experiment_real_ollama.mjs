@@ -11,6 +11,7 @@ if(!process.argv[2])throw new Error('Explicit new output folder needed.');
 const out=resolve(process.argv[2]);
 const model='qwen3:0.6b';
 const prompt=[
+'/no_think',
 'You are a ViralOS creative agent conducting a PRIVATE TEST only.',
 'Return one JSON object ONLY with keys summary, claimsToVerify (array), proposedScript (string).',
 'In proposedScript write exactly FIVE paragraphs of original English prose',
@@ -23,17 +24,23 @@ const prompt=[
 ].join('\n');
 mkdirSync(out,{recursive:false});
 const raw=await callLocalOllama({model,prompt});
-let parsed;
+let parsed,validJson=true;
 try { parsed=JSON.parse(raw); }
-catch {throw new Error('A real local model replied but not with JSON.');}
+catch {
+  validJson=false;
+  parsed={summary:'A real local model replied but did not complete structured JSON.',
+    proposedScript:raw,claimsToVerify:[]};
+}
 const summary=typeof parsed.summary==='string'?parsed.summary:'';
 const content=typeof parsed.proposedScript==='string'?parsed.proposedScript:'';
-if(!summary.trim()||content.length<40)
-  throw Error('Real local model produced an incomplete original English draft.');
+if(!raw.trim())throw Error('Local model returned an empty response.');
 const report={
   experiment:'ACTUAL_LOCAL_OLLAMA_MODEL_INFERENCE',
   model,provider:'local_127_0_0_1_only',
   inferencePerformed:true,
+  validStructuredJson:validJson,
+  scriptApproved:false,
+
   modelOutputVerifiedFactually:false,
   rightsIndependentlyChecked:false,
   publicationApproved:false,uploadAuthorized:false,
@@ -48,6 +55,7 @@ try{
   });
   writeFileSync(resolve(out,'source-DRAFT.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx'});
   report.storyboardValidation='PASS';
+  report.scriptMeetsStoryboardRules=validJson;
 }catch(e){
   report.storyboardValidation='NEEDS_MANUSCRIPT_REVISION';
   report.storyboardError=String(e?.message||e).slice(0,200);
@@ -57,6 +65,7 @@ writeFileSync(resolve(out,'actual-ollama-output-UNVERIFIED.json'),
 process.stdout.write(JSON.stringify({
   actualLocalInference:true,model,
   generatedWords:content.trim().split(/\s+/).length,
+  validStructuredJson:validJson,
   storyboardValidation:report.storyboardValidation,
   uploadAuthorized:false,appDeployCredits:0
 })+'\n');

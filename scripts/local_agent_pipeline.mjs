@@ -94,8 +94,8 @@ export async function callLocalOllama({ model, prompt, fetchImpl = fetch }) {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      model, prompt, stream: false, format: 'json',
-      options: { temperature: 0.2, num_predict: 750, num_ctx: 2048 },
+      model, prompt, stream: false, format: 'json', think: false,
+      options: { temperature: 0.2, num_predict: 1400, num_ctx: 2048 },
     }),
     signal: AbortSignal.timeout(120000),
   });
