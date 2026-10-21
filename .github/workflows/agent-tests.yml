@@ -11,6 +11,8 @@ on:
       - 'src/ShortsPlanPreview.tsx'
       - 'src/App.tsx'
       - 'worker/**'
+      - 'scripts/**'
+      - 'tests/fixtures/**'
       - 'tests/*.test.mjs'
       - 'package.json'
       - 'tsconfig.offline.json'
@@ -34,7 +36,7 @@ jobs:
       - name: Typecheck pure offline ViralOS modules
         run: npx tsc -p tsconfig.offline.json
       - name: Test agent safety contracts and measured YouTube velocity
-        run: node --experimental-strip-types --test tests/agent-workflow.test.mjs tests/manager-momentum.test.mjs tests/shorts-production-plan.test.mjs tests/subtitle-export.test.mjs tests/private-upload-gate.test.mjs
+        run: node --experimental-strip-types --test tests/agent-workflow.test.mjs tests/manager-momentum.test.mjs tests/shorts-production-plan.test.mjs tests/subtitle-export.test.mjs tests/private-upload-gate.test.mjs tests/local-manifest.test.mjs
       - name: Install free FFmpeg and DejaVu Sans for real preview smoke test
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
       - name: Python renderer contract tests (offline)
@@ -44,3 +46,15 @@ jobs:
           command -v ffmpeg
           command -v ffprobe
           test -f /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+      - name: End-to-end text → plan → MP4 → SHA-256 verification (offline)
+        run: |
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          node --experimental-strip-types scripts/create_draft_plan.mjs \
+            --script tests/fixtures/short_script_en.txt \
+            --title "A fictional English Short" \
+            --source-url https://example.org/fictional-short \
+            --out "$tmpdir/source-DRAFT.json"
+          python3 worker/build_short_draft.py "$tmpdir/source-DRAFT.json" "$tmpdir/preview" --silent-preview
+          python3 worker/verify_draft.py "$tmpdir/preview"
+

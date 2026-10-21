@@ -41,3 +41,29 @@ Receipt does not approve facts, copyrighted assets, media, uploads or release.
 CI smoke tests use synthetic tones, not an actual English AI voice.
 GitHub Actions CI and installation of packages can still use GitHub-hosted
 runner quotas; the pipeline itself does not charge AppDeploy credits.
+
+## Completely independent of AppDeploy: start with ordinary English text
+
+A new Node 22+ local helper creates the JSON plan without requiring a running
+AppDeploy website. It uses the same manuscript scene planner as the web UI.
+
+    node --experimental-strip-types scripts/create_draft_plan.mjs \
+      --script tests/fixtures/short_script_en.txt \
+      --title "An original English Short" \
+      --source-url https://example.org/fictional-story \
+      --out source-DRAFT.json
+
+Then render and validate:
+
+    python3 worker/build_short_draft.py source-DRAFT.json local-preview --silent-preview
+    python3 worker/verify_draft.py local-preview
+
+The helper refuses to overwrite an existing JSON file, and the production
+builder refuses to overwrite an existing output directory. The script must
+contain 80–150 words with 3–8 paragraphs and a 3–8-word hook. A supplied
+HTTPS source URL is stored for reference only; it is **not checked or read**.
+A successful draft verification is not a license clearance or consent to upload.
+
+The GitHub Actions run performs the entire text → plan → MP4 → integrity chain
+with no model inference, no publication, no AppDeploy credits and no external
+content downloads (only CI tool/dependency setup).
