@@ -39,7 +39,7 @@ jobs:
           ollama pull qwen2.5:1.5b-instruct-q4_K_M
       - name: Four genuine local neural stages and quality gate
         run: |
-          node scripts/run_four_real_agents.mjs \
+          node --experimental-strip-types scripts/run_four_real_agents.mjs \
             --topic "A fictional city that remembers the choices in a game" \
             --source-url https://example.org/viralos-original-fiction \
             --out-dir "$RUNNER_TEMP/real-four" --allow-four-local-calls
