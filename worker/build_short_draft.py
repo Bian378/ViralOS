@@ -34,6 +34,7 @@ def build_draft(
     silent_preview: bool = False,
     audio_rights_checked: bool = False,
     voice_license_checked: bool = False,
+    kinetic_preview: bool = False,
 ) -> dict:
     if sum([narration is not None, piper_model is not None, silent_preview]) != 1:
         raise ValueError("Choose exactly one: --narration, --piper-model, or --silent-preview.")
@@ -88,6 +89,7 @@ def build_draft(
                 script_snapshot, movie, wav,
                 audio_rights_checked=(wav is not None),
                 fit_narration=(wav is not None),
+                kinetic_preview=kinetic_preview,
             )
             # Use the same proportional frame scaling used inside the renderer.
             # These cues are still only ESTIMATES, not speech-aligned.
@@ -109,6 +111,7 @@ def build_draft(
             receipt = {
                 "formatVersion": 1,
                 "status": "UNAPPROVED_DRAFT_LOCAL_ONLY",
+                "visualStyle": "kinetic_procedural" if kinetic_preview else "typography_static",
                 "projectId": plan["projectId"],
                 "manuscriptRevision": plan["revision"],
                 "sourceManifestSha256": hash_file(script_snapshot),
@@ -148,12 +151,14 @@ def main() -> None:
     group.add_argument("--silent-preview", action="store_true")
     parser.add_argument("--audio-rights-checked", action="store_true")
     parser.add_argument("--voice-license-checked", action="store_true")
+    parser.add_argument("--kinetic-preview", action="store_true")
     args = parser.parse_args()
     result = build_draft(
         args.manifest, args.destination, narration=args.narration,
         piper_model=args.piper_model, silent_preview=args.silent_preview,
         audio_rights_checked=args.audio_rights_checked,
         voice_license_checked=args.voice_license_checked,
+        kinetic_preview=args.kinetic_preview,
     )
     print(json.dumps(result, indent=2, ensure_ascii=False))
 

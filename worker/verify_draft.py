@@ -52,6 +52,11 @@ def verify_draft(directory: Path) -> dict:
        video_qc.get("published") is not False or \
        video_qc.get("rights") != "UNVERIFIED_BY_SOFTWARE":
         raise ValueError("Video QC falsely claims approval or rights clearance.")
+    visual = receipt.get("visualStyle")
+    if visual not in ("typography_static", "kinetic_procedural") or \
+       video_qc.get("visualStyle") != visual or \
+       video_qc.get("externalVisualAssets") is not False:
+        raise ValueError("Video visual style or external asset declaration mismatch.")
     kind = receipt.get("audio")
     if kind not in ("silent", "operator_wav", "local_piper"):
         raise ValueError("Unknown audio source.")

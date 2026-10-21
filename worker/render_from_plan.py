@@ -15,6 +15,7 @@ import tempfile
 import textwrap
 from fractions import Fraction
 from retime_timeline import retime_plan_to_duration
+from kinetic_style import create_kinetic_filters, gradient_source
 
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 FPS = 30
@@ -124,7 +125,8 @@ def create_filters(plan: dict, work_dir: Path) -> str:
 
 def render(manifest: Path, destination: Path, narration: Path | None = None,
            audio_rights_checked: bool = False,
-           fit_narration: bool = False) -> dict:
+           fit_narration: bool = False,
+           kinetic_preview: bool = False) -> dict:
     plan = load_and_validate(manifest)
     if narration and not audio_rights_checked:
         raise ValueError("Explicit audio rights declaration required.")
@@ -146,10 +148,13 @@ def render(manifest: Path, destination: Path, narration: Path | None = None,
     if destination.suffix.lower() != ".mp4":
         raise ValueError("Output must be a .mp4 file.")
     with tempfile.TemporaryDirectory() as directory:
-        filters = create_filters(plan, Path(directory))
+        filters = (create_kinetic_filters(plan, Path(directory))
+                   if kinetic_preview else create_filters(plan, Path(directory)))
+        source = (gradient_source() if kinetic_preview
+                  else f"color=c=0x0b1925:s=1080x1920:r={FPS}")
         cmd = [
             "ffmpeg", "-nostdin", "-v", "error", "-y",
-            "-f", "lavfi", "-i", f"color=c=0x0b1925:s=1080x1920:r={FPS}",
+            "-f", "lavfi", "-i", source,
         ]
         if narration:
             cmd += ["-i", str(narration.resolve())]
@@ -180,6 +185,8 @@ def render(manifest: Path, destination: Path, narration: Path | None = None,
     qc = {
         "output": str(destination), "status": "DRAFT_REQUIRES_HUMAN_REVIEW",
         "sourceFootageUsed": False,
+        "visualStyle": "kinetic_procedural" if kinetic_preview else "typography_static",
+        "externalVisualAssets": False,
         "width": 1080, "height": 1920, "fps": FPS,
         "durationSeconds": float(meta["format"]["duration"]),
         "audioAttached": audio_present,
@@ -205,9 +212,11 @@ def main():
     parser.add_argument("--audio-rights-checked", action="store_true")
     parser.add_argument("--fit-narration", action="store_true",
                         help="Retimes estimated scenes/captions to provided narration; not speech alignment")
+    parser.add_argument("--kinetic-preview", action="store_true",
+                        help="Opt in to procedural animated gradient and moving typography")
     args = parser.parse_args()
     result = render(args.manifest, args.destination, args.narration,
-                    args.audio_rights_checked, args.fit_narration)
+                    args.audio_rights_checked, args.fit_narration, args.kinetic_preview)
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
 
