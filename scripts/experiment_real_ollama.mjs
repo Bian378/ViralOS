@@ -4,7 +4,6 @@
  */
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
-import {callLocalOllama} from './local_agent_pipeline.mjs';
 import {makeLocalDraftPlan} from './create_draft_plan.mjs';
 
 if(!process.argv[2])throw new Error('Explicit new output folder needed.');
@@ -23,7 +22,22 @@ const prompt=[
 'No URLs, no excerpts from existing media, no Markdown, no extra explanation.',
 ].join('\n');
 mkdirSync(out,{recursive:false});
-const raw=await callLocalOllama({model,prompt});
+// Qwen3: official Ollama chat endpoint supports explicit non-thinking output.
+const response=await fetch('http://127.0.0.1:11434/api/chat',{
+  method:'POST',
+  headers:{'content-type':'application/json'},
+  body:JSON.stringify({
+    model,messages:[{role:'user',content:prompt}],
+    stream:false,format:'json',think:false,
+    options:{num_ctx:2048,num_predict:1300,temperature:0.2},
+  }),
+  signal:AbortSignal.timeout(120000),
+});
+if(!response.ok)throw Error('Local Ollama chat returned HTTP '+response.status);
+const output=await response.json();
+const raw=output?.message?.content;
+if(typeof raw!=='string'||!raw.trim())
+  throw Error('Local Qwen3 chat returned no final text.');
 let parsed,validJson=true;
 try { parsed=JSON.parse(raw); }
 catch {
