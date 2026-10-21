@@ -145,3 +145,19 @@ flow and safety, not a real local model. A real local inference has
 NOT yet been conducted. No public-release feature or AppDeploy deployment
 is enabled. Real integration still requires owner-scoped persistent
 authorization, atomic retries, quality review and YouTube OAuth.
+
+## End-to-end local agent -> real offline MP4 composition (development branch only)
+
+- `scripts/agent_to_video_preview.mjs` requires explicit consent for four local
+  model calls and a chosen output folder that does not exist yet.
+- It validates an unapproved agent output, creates a saved manuscript JSON,
+  invokes the local Python/FFmpeg renderer, then checks final SHA-256, media
+  metadata, caption status and whether upload/public release are disabled.
+- Only a silent draft or a user-owned licensed WAV can be used in this CLI.
+- Script errors, encoder failures or integrity mismatches clean up partial
+  output; the caller's original files remain unchanged.
+- `scripts/smoke_agent_video.mjs` is an offline CI integration proof: FOUR
+  **simulated agent replies**, a REAL rendered text-only MP4 and a REAL final
+  integrity check. This does NOT demonstrate real neural inference.
+- A real local Ollama model still needs separate install, user authorization
+  and testing. No Vimeo, TikTok or YouTube uploads, no AppDeploy changes.
