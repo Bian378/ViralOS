@@ -52,11 +52,11 @@ test('cannot run without consent or valid HTTPS metadata',async()=>{
   await assert.rejects(runFourRealAgents({topic,sourceUrl,projectId:'../bad',explicitLocalConsent:true,invoke:f.invoke}),/safe project/);
   assert.equal(f.calls.length,0);
 });
-test('six hundred words are rejected after all four actual role boundaries',async()=>{
+test('overlong but bounded draft is rejected after all four role boundaries',async()=>{
   const f=fake();
   const result=await runFourRealAgents({
     topic,sourceUrl,explicitLocalConsent:true,
-    invoke:async x=>x.role==='manager'?Array(672).fill('notready').join(' '):f.invoke(x),
+    invoke:async x=>x.role==='manager'?Array(200).fill('notready').join(' '):f.invoke(x),
   });
   assert.equal(result.draftManifest,null);
   assert.equal(result.report.status,'MANUSCRIPT_REJECTED_BY_VALIDATOR');
