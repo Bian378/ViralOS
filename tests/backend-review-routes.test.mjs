@@ -99,4 +99,99 @@ await build({
   setup(buildTool){
    buildTool.onResolve({filter:/^@appdeploy\/sdk$/},()=>({path:'mock',namespace:'mock-sdk'}));
    buildTool.onLoad({filter:/.*/,namespace:'mock-sdk'},()=>({
-    contents:
+    contents:[
+      'export const db=globalThis.__viralReviewDb;',
+      'export const requireAuth=()=>({requiredAuth:true});',
+      'export const json=(value,status=200)=>({statusCode:status,body:JSON.stringify(value)});',
+      'export const error=(message,status=400)=>({statusCode:status,body:JSON.stringify({error:message})});',
+      'export const isAppDatabaseError=()=>false;'
+    ].join('\n'),
+    loader:'js'
+   }));
+  }
+ }]
+});
+const {createReviewInboxRoutes,trustedAddStoredReview}=await import(pathToFileURL(bundle).href);
+const routes=createReviewInboxRoutes();
+const context=(who=owner,id='secure-review-123')=>({
+ authenticatedOwnerId:who,queueId:id,storedMp4Sha256:sha,
+ exactByteVerificationPassed:true,importedAt:'2026-10-21T20:00:00Z'
+});
+const endpoint=(name,who=owner,id='secure-review-123',body={})=>
+  routes[name][1]({user:{userId:who},params:{id},body});
+const body=result=>JSON.parse(result.body);
+const checks={
+ factsChecked:true,originalAndMediaRightsChecked:true,voiceRightsChecked:true,
+ captionsSyncedToSpokenAudio:true,finalVideoWatched:true
+};
+
+test('all routes require authentication and expose no untrusted import/upload operation',()=>{
+ assert.deepEqual(Object.keys(routes).sort(),[
+  'GET /api/video-reviews','GET /api/video-reviews/:id',
+  'POST /api/video-reviews/:id/decision'
+ ].sort());
+ for(const handlers of Object.values(routes))assert.equal(handlers[0].requiredAuth,true);
+});
+test('server-only trusted import creates owner-index and refuses mismatched media hash',async()=>{
+ await assert.rejects(trustedAddStoredReview(packet,{...context(),storedMp4Sha256:'b'.repeat(64)}),/changed/);
+ const created=await trustedAddStoredReview(packet,context());
+ assert.equal(created.ownerId,owner);
+ assert.equal(created.version,1);
+ const list=await endpoint('GET /api/video-reviews');
+ assert.equal(list.statusCode,200);
+ assert.equal(body(list).items.length,1);
+ assert.equal(body(list).items[0].hasUploadPermission,false);
+ assert.equal(body(list).publishingEnabled,false);
+ assert.equal(body(list).storageEnabled,false);
+});
+test('another user cannot list, retrieve or decide foreign reviews',async()=>{
+ const list=await endpoint('GET /api/video-reviews',stranger);
+ assert.equal(list.statusCode,200);
+ assert.deepEqual(body(list).items,[]);
+ const detail=await endpoint('GET /api/video-reviews/:id',stranger);
+ assert.equal(detail.statusCode,404);
+ const modify=await endpoint('POST /api/video-reviews/:id/decision',stranger,undefined,{
+  decision:'mark_video_reviewed',expectedVersion:1,expectedVideoSha256:sha,
+  explicitOwnerAction:true,checks,comment:'all checked'
+ });
+ assert.equal(modify.statusCode,404);
+});
+test('exact version and SHA plus complete owner checklist are required',async()=>{
+ const invalidInputs=[
+  {expectedVersion:1,expectedVideoSha256:sha,checks:{...checks,voiceRightsChecked:false}},
+  {expectedVersion:0,expectedVideoSha256:sha,checks},
+  {expectedVersion:1,expectedVideoSha256:'b'.repeat(64),checks},
+ ];
+ for(const invalid of invalidInputs){
+  const result=await endpoint('POST /api/video-reviews/:id/decision',owner,undefined,{
+    decision:'mark_video_reviewed',explicitOwnerAction:true,comment:'Checked',...invalid
+  });
+  assert.equal(result.statusCode,409);
+ }
+});
+test('owner can request changes once; CAS prevents concurrent override and upload',async()=>{
+ const result=await endpoint('POST /api/video-reviews/:id/decision',owner,undefined,{
+  decision:'request_changes',expectedVersion:1,expectedVideoSha256:sha,
+  explicitOwnerAction:true,checks:{...checks,voiceRightsChecked:false},
+  comment:'Voice rights not verified'
+ });
+ assert.equal(result.statusCode,200);
+ assert.equal(body(result).state,'changes_requested');
+ assert.equal(body(result).version,2);
+ assert.equal(body(result).permissions.canPublish,false);
+ assert.equal(body(result).permissions.canUploadToYouTube,false);
+ const repeat=await endpoint('POST /api/video-reviews/:id/decision',owner,undefined,{
+  decision:'mark_video_reviewed',expectedVersion:1,expectedVideoSha256:sha,
+  explicitOwnerAction:true,checks,comment:'Second reviewer'
+ });
+ assert.equal(repeat.statusCode,409);
+ const stored=await endpoint('GET /api/video-reviews/:id');
+ assert.equal(body(stored).reviewHistory.length,1);
+ assert.equal(body(stored).ownerId,owner);
+});
+test('trusted import refuses duplicate IDs without replacing existing review',async()=>{
+ await assert.rejects(trustedAddStoredReview(packet,context()),/duplicate-record/);
+ const list=await endpoint('GET /api/video-reviews');
+ assert.equal(body(list).items.length,1);
+});
+test.after(()=>{delete globalThis.__viralReviewDb;rmSync(tmp,{recursive:true,force:true});});
