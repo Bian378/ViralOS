@@ -113,3 +113,35 @@ were submitted.
 - `worker/render_from_plan.py --fit-narration` opts into re-timing before audio muxing.
 - CI smoke tests use a synthetic FFmpeg tone, **not a natural AI voice**.
 - These are standalone local scripts, not connected to AppDeploy or its users.
+
+## Local real AI agent chain (no AppDeploy credits)
+
+The new `scripts/run_local_agents.mjs` is an opt-in CLI for four local
+model inferences in order: creative -> research -> quality -> manager.
+It uses Ollama POST /api/generate in JSON nonstream mode, but the endpoint
+is fixed to 127.0.0.1:11434. No external AI service, model download, video
+upload, scheduler, or paid AppDeploy API is invoked by this CLI.
+
+Requires Node 22+, an Ollama server installed on your own computer,
+an English-capable model already present on that computer, enough compute
+and an acceptable model license. No model is installed by this repo or CI.
+
+    node --experimental-strip-types scripts/run_local_agents.mjs \
+      --topic "An original fictional story about gaming" \
+      --source-url https://example.org/source \
+      --model llama3.2:3b \
+      --out-dir ./my-agent-draft \
+      --allow-local-inference
+
+The CLI writes agent-proposals-UNVERIFIED.json and source-DRAFT.json in a NEW
+directory; both are unapproved drafts. Explicit --allow-local-inference
+is required for each run. Agent inputs and prior proposals are untrusted.
+Research does NOT browse or verify facts: it only lists facts to check.
+The final original Short must pass the existing 80-150 words, 3-8
+paragraphs and 3-8 word hook rule. Invalid outputs fail closed.
+
+GitHub Actions tests use a MOCK inference implementation to check code
+flow and safety, not a real local model. A real local inference has
+NOT yet been conducted. No public-release feature or AppDeploy deployment
+is enabled. Real integration still requires owner-scoped persistent
+authorization, atomic retries, quality review and YouTube OAuth.
