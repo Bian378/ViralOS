@@ -54,12 +54,12 @@ def create_local_voiceover(manifest: Path, model: Path, destination: Path,
     model = model.resolve()
     english_voice_config(model)
     text = narration_text(plan)
-    if importlib.util.find_spec("piper") is None:
-        raise ValueError("A locally installed Piper Python module is required.")
     destination = destination.resolve()
     if destination.suffix.lower() != ".wav" or not destination.parent.is_dir() or \
        destination.exists():
         raise ValueError("A new, writable .wav destination is required.")
+    if importlib.util.find_spec("piper") is None:
+        raise ValueError("A locally installed Piper Python module is required.")
     # OHF-Voice/piper1-gpl CLI; user supplies the local voice files.
     command = [sys.executable, "-m", "piper", "-m", model.stem,
                "--data-dir", str(model.parent), "-f", str(destination), "--", text]
