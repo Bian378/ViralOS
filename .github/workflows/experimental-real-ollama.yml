@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   local-qwen-feasibility:
-    if: github.event_name == 'pull_request' && github.event.pull_request.draft == true
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 18
     steps:
@@ -54,7 +54,7 @@ jobs:
       - name: Save only draft response and optional storyboard (no model)
         uses: actions/upload-artifact@v4
         with:
-          name: viralos-Qwen3-local-UNVERIFIED-manuscript
+          name: viralos-LOCAL-MODEL-UNVERIFIED-manuscript
           path: |
             ${{ runner.temp }}/real-model-test/actual-ollama-output-UNVERIFIED.json
             ${{ runner.temp }}/real-model-test/source-DRAFT.json

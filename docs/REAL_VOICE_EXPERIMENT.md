@@ -9,3 +9,7 @@
 - Human voice quality, pronunciation, commercial rights, speech/caption alignment and YouTube suitability must still be reviewed. The MP4 is explicitly unapproved and NOT uploaded to social media.
 - Repo workflow may consume GitHub Actions minutes/bandwidth even without AppDeploy credits; no guarantee of unlimited free GitHub minutes. Artifact retained for 2 days.
 - **Do not automatically rerun this expensive experiment on later unrelated commits**; CI exists in draft PR for one feasibility check.
+
+Latest experiment succeeded on Actions run 39663551380. Real H264+AAC
+draft duration 43.066667 seconds. No public release or commercial-rights
+approval. Automated reruns on pull_request have been switched off.
