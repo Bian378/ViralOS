@@ -44,6 +44,7 @@ import TrendLab from './TrendLab';
 import QualityWorkbench from './ScriptQuality';
 import EditorialWorkflow from './EditorialWorkflow';
 import ShortsPlanPreview from './ShortsPlanPreview';
+import ReviewInboxPreview from './ReviewInboxPreview';
 import { revisionOf, scriptHash, type ScriptReview } from './review';
 
 const navigation = [
@@ -53,6 +54,7 @@ const navigation = [
   { id: 'radar', name: 'Trendradar', icon: Radar },
   { id: 'trend-lab', name: 'Trendlabb', icon: Radar },
   { id: 'studio', name: 'Videostudio', icon: Film },
+  { id: 'review-inbox', name: 'Videogranskning', icon: ShieldCheck },
   { id: 'calendar', name: 'Publicering', icon: CalendarDays },
   { id: 'analytics', name: 'Analys & tillväxt', icon: BarChart3 },
   { id: 'connections', name: 'Anslutningar', icon: Unplug },
@@ -62,7 +64,7 @@ const navigation = [
 const navigationGroups = [
   { id: 'discover', name: 'Upptäck', icon: Radar, pages: ['radar', 'trend-lab'] },
   { id: 'create', name: 'Skapa', icon: Film, pages: ['agents', 'jobs', 'studio'] },
-  { id: 'results', name: 'Resultat', icon: BarChart3, pages: ['calendar', 'analytics'] },
+  { id: 'results', name: 'Resultat', icon: BarChart3, pages: ['review-inbox', 'calendar', 'analytics'] },
   { id: 'system', name: 'System', icon: Settings2, pages: ['connections', 'settings', 'system-check'] },
 ];
 type Connections = {
@@ -1032,6 +1034,8 @@ export default function App() {
               </div>
             </>
           )}
+
+          {page === 'review-inbox' && <ReviewInboxPreview />}
 
           {page === 'calendar' && (
             <>
