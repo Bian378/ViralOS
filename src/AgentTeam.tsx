@@ -95,6 +95,10 @@ export default function AgentTeam({
             </div>
             <h3>{idea.title}</h3>
             <p className="smallprint">{fmt(idea.views)} totala visningar · Publicerad {date(idea.publishedAt)}</p>
+            {typeof idea.viewsPerHour === 'number' && <p className="smallprint">
+              <strong>{fmt(Math.round(idea.viewsPerHour))} visningar/timme</strong>
+              {' · '}uppmätt +{fmt(idea.observedViewIncrease ?? 0)} under {Math.round((idea.measuredHours ?? 0) * 10) / 10} timmar
+            </p>}
             <p className="smallprint">{idea.reason}</p>
             <div className="actions" style={{ flexWrap: 'wrap' }}>
               <a className="manager-link" href={idea.url} target="_blank" rel="noopener noreferrer">
