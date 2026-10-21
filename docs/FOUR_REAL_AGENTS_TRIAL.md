@@ -52,3 +52,28 @@ The genuine four-stage workflow test has a temporary title flag. It must stay
 disabled after its single authorized demonstration; repeated GitHub-hosted
 runs can consume finite runner quotas. Real results should be documented
 separately without confusing model failure with CI harness failure.
+
+## Actual four-agent trial: verified outcome
+
+- GitHub run 39672945066 really loaded Qwen2.5 1.5B and executed
+  creative, research/claim-flags, quality rewrite and manager in order.
+- All four stages returned outputs and produced a full review report.
+- Initial and later proposed scripts repeated nearly identical 444-word
+  markdown-formatted content. The research model returned NO_VERIFIED_FACTS.
+- The strict 80-150 word/paragraph storyboard validator rejected the
+  manager output; **no MP4 was generated** and publication stayed disabled.
+- This is evidence that four real model calls work, NOT that the model
+  collaborates effectively or produces publishable content.
+
+Improvements after this observation:
+- Strict per-role generation budgets: research 120 tokens, others 260.
+- Model gets at most a 125-word excerpt from oversized previous scripts,
+  instead of echoing 444 words in every subsequent stage. The original
+  full responses remain in the unapproved report.
+- Rewrite prompts emphasize original, condensed 90-110 word Shorts
+  instead of repeating previous stage output.
+- Both these improvements are covered by no-network unit tests.
+
+An additional opt-in single-run model experiment checks whether those
+changes help. Never weaken factual review, rights review, owner approval
+or the production format gate to improve the pass rate.
