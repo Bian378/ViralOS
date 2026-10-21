@@ -18,10 +18,21 @@ function scenesFor(script: string) {
   if (words.length < 5 || words.length > 180)
     throw new Error('Använd 5–180 ord för en tydlig kortvideo.');
   const scenes: string[] = [];
-  for (const paragraph of script.split(/\n+/).filter(s => s.trim())) {
+  for (const paragraph of script.split(/\n+/).map(p => p.trim()).filter(Boolean)) {
     const part = paragraph.split(/\s+/);
-    for (let i = 0; i < part.length; i += 18)
-      scenes.push(part.slice(i, i + 18).join(' '));
+    // Balance text across equal-sized scenes instead of leaving a short fragment
+    // on the last scene (e.g. an 18-word scene followed by one lone word).
+    const count = Math.ceil(part.length / 16);
+    const width = Math.ceil(part.length / count);
+    for (let i = 0; i < part.length; i += width)
+      scenes.push(part.slice(i, i + width).join(' '));
+  }
+  if (scenes.length > 1 && scenes[scenes.length - 1].split(/\s+/).length < 4) {
+    const tail = scenes.pop()!.split(/\s+/);
+    const previous = scenes.pop()!.split(/\s+/);
+    const joined = [...previous, ...tail];
+    const split = Math.ceil(joined.length / 2);
+    scenes.push(joined.slice(0, split).join(' '), joined.slice(split).join(' '));
   }
   if (scenes.length > 12)
     throw new Error('Högst 12 scener. Slå ihop eller korta manusets stycken.');
