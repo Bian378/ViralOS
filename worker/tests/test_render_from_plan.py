@@ -113,5 +113,29 @@ class ValidationTests(unittest.TestCase):
                 executor.assert_not_called()
 
 
+    @unittest.skipUnless(
+        __import__("shutil").which("ffmpeg") and __import__("shutil").which("ffprobe")
+        and Path(renderer.FONT).is_file(),
+        "FFmpeg or DejaVuSans not available on runner",
+    )
+    def test_actual_two_second_h264_preview_with_no_music_or_upload(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest_path = root / "input.json"
+            destination = root / "preview.mp4"
+            manifest_path.write_text(json.dumps(manifest()), encoding="utf-8")
+            result = renderer.render(manifest_path, destination)
+            self.assertEqual(result["status"], "DRAFT_REQUIRES_HUMAN_REVIEW")
+            self.assertEqual(result["width"], 1080)
+            self.assertEqual(result["height"], 1920)
+            self.assertEqual(result["fps"], 30)
+            self.assertFalse(result["audioAttached"])
+            self.assertFalse(result["humanApproved"])
+            self.assertFalse(result["published"])
+            self.assertTrue(destination.is_file())
+            self.assertGreater(destination.stat().st_size, 1000)
+            self.assertTrue(destination.with_suffix(".qc.json").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
