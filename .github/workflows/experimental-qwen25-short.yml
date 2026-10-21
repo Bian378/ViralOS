@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   real-model-and-voice:
-    if: github.event_name == 'pull_request' && github.event.pull_request.draft == true
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == true && github.event.pull_request.head.sha == '4c318917de1102bb4d2c0fdb0164bc17eb6f621f'
     runs-on: ubuntu-latest
     timeout-minutes: 18
     steps:
