@@ -139,3 +139,45 @@ test('optional procedural motion flag reaches offline video worker without chang
   assert.equal(result.publicReleaseAllowed,false);
   assert.equal(result.realModelUsed,false);
 }));
+
+
+test('new four REAL chat model path can produce kinetic MP4 from manager draft',()=>inFolder(async root=>{
+  const steps=[],calls=[];
+  const result=await buildAgentVideoPreview({
+    ...base(root),
+    model:'qwen2.5:1.5b-instruct-q4_K_M',
+    realChatAgents:true,kineticPreview:true,
+    chatAgentRunner:async args=>{
+      calls.push(args);
+      return {
+        report:{rolesExecuted:['creative','research','quality','manager'],realModelUsed:false},
+        draftManifest:{notForPublication:true},
+      };
+    },
+    pythonRunner:simulatePython(steps),
+  });
+  assert.equal(calls.length,1);
+  assert.ok(steps[0].includes('--kinetic-preview'));
+  assert.equal(result.agentCount,4);
+  assert.equal(result.publicReleaseAllowed,false);
+}));
+test('invalid manager final manuscript fails before output folder or FFmpeg',()=>inFolder(async root=>{
+  const destination=join(root,'should-not-exist'),steps=[];
+  await assert.rejects(buildAgentVideoPreview({
+    ...base(root),
+    destination,model:'qwen2.5:1.5b-instruct-q4_K_M',
+    realChatAgents:true,
+    chatAgentRunner:async()=>({
+      report:{rolesExecuted:['creative','research','quality','manager']},
+      draftManifest:null,
+    }),
+    pythonRunner:simulatePython(steps),
+  }),/failed validation/);
+  assert.equal(existsSync(destination),false);
+  assert.equal(steps.length,0);
+}));
+test('rejects requested different model in fixed local Qwen2.5 four-chat pipeline',()=>inFolder(async root=>{
+  await assert.rejects(buildAgentVideoPreview({
+    ...base(root),realChatAgents:true,pythonRunner:simulatePython([]),
+  }),/exactly Qwen2.5/);
+}));

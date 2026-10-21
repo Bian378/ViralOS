@@ -8,6 +8,7 @@ import { resolve, dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { runLocalAgents } from './local_agent_pipeline.mjs';
+import { runFourRealAgents, MODEL as REAL_CHAT_MODEL } from './four_real_agents.mjs';
 
 function validateOptions(args) {
   if (args.explicitLocalConsent !== true)
@@ -46,16 +47,24 @@ export async function buildAgentVideoPreview({
   silentPreview=false, kineticPreview=false,
   narration=null, audioRightsChecked=false,
   inference,
+  realChatAgents=false,
+  chatAgentRunner=runFourRealAgents,
   pythonRunner=offlinePython,
 }){
   // Fail before AI inference if the final output location and audio authorizations are invalid.
   const root=validateOptions({
     destination,explicitLocalConsent,silentPreview,narration,audioRightsChecked,
   });
-  const {report,draftManifest}=await runLocalAgents({
-    topic,sourceUrl,model,explicitLocalConsent,
-    ...(inference?{inference}:{}),
-  });
+  if(realChatAgents&&(inference||model!==REAL_CHAT_MODEL))
+    throw new Error('The real chat path uses exactly Qwen2.5 1.5B and no legacy inference adapter.');
+  const {report,draftManifest}=realChatAgents
+    ?await chatAgentRunner({topic,sourceUrl,explicitLocalConsent})
+    :await runLocalAgents({
+      topic,sourceUrl,model,explicitLocalConsent,
+      ...(inference?{inference}:{}),
+    });
+  if(!draftManifest||draftManifest.notForPublication!==true)
+    throw new Error('Four-agent manager draft failed validation; no video can be rendered.');
   mkdirSync(root);  // Exclusive reservation, no overwriting existing work.
   try {
     writeFileSync(join(root,'agent-proposals-UNVERIFIED.json'),
@@ -78,7 +87,7 @@ export async function buildAgentVideoPreview({
       throw new Error('Draft integrity or publication safety check failed.');
     return {
       directory:root,
-      agentCount:report.rolesRun.length,
+      agentCount:(report.rolesExecuted||report.rolesRun).length,
       realModelUsed:report.realModelUsed,
       outputVideo:join(preview,'short-DRAFT.mp4'),
       draftSha256:validation.sha256,
@@ -98,7 +107,7 @@ export async function buildAgentVideoPreview({
 
 function options(argv){
   const options={};
-  const flags=new Set(['--allow-local-inference','--silent-preview','--audio-rights-checked','--kinetic-preview']);
+  const flags=new Set(['--allow-local-inference','--silent-preview','--audio-rights-checked','--kinetic-preview','--real-four-chat']);
   const values=new Set(['--topic','--source-url','--model','--out-dir','--narration']);
   for(let i=0;i<argv.length;i++){
     const k=argv[i];
@@ -124,6 +133,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).hr
       explicitLocalConsent:a['--allow-local-inference']===true,
       silentPreview:a['--silent-preview']===true,
       kineticPreview:a['--kinetic-preview']===true,
+      realChatAgents:a['--real-four-chat']===true,
       narration:a['--narration']||null,
       audioRightsChecked:a['--audio-rights-checked']===true,
     });
