@@ -1,4 +1,4 @@
-name: One-time four REAL Qwen2.5 editorial agents
+name: One-time four REAL Qwen2.5 editorial agents – bounded rewrite retest
 on:
   pull_request:
     paths:
@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   four-real-english-stages:
-    if: github.event_name == 'pull_request' && github.event.pull_request.draft == true && contains(github.event.pull_request.title, '[RUN FOUR REAL ONCE]')
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == true && contains(github.event.pull_request.title, '[RUN FOUR REAL RETEST]')
     runs-on: ubuntu-latest
     timeout-minutes: 18
     steps:
