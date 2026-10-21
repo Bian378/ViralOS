@@ -29,17 +29,26 @@ jobs:
       - name: Launch local Ollama and download small Apache 2.0 model
         run: |
           export OLLAMA_HOST="127.0.0.1:11434"
-          nohup ollama serve > "$RUNNER_TEMP/ollama.log" 2>&1 &
+          OLLAMA_CONTEXT_LENGTH=2048 OLLAMA_NUM_PARALLEL=1 nohup ollama serve > "$RUNNER_TEMP/ollama.log" 2>&1 &
           for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:11434/api/version > /dev/null; then break; fi
             sleep 1
           done
           curl -fsS http://127.0.0.1:11434/api/version
           ollama pull qwen3:0.6b
+          ollama list
       - name: Create genuine neural manuscript and validation report
+        env:
+          OLLAMA_CONTEXT_LENGTH: "2048"
         run: |
           node --experimental-strip-types scripts/experiment_real_ollama.mjs "$RUNNER_TEMP/real-model-test"
           test -s "$RUNNER_TEMP/real-model-test/actual-ollama-output-UNVERIFIED.json"
+      - name: If model fails, show local server diagnostics
+        if: failure()
+        run: |
+          if test -f "$RUNNER_TEMP/ollama.log"; then
+            tail -n 65 "$RUNNER_TEMP/ollama.log"
+          fi
       - name: Save only draft response and optional storyboard (no model)
         uses: actions/upload-artifact@v4
         with:

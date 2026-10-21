@@ -95,12 +95,12 @@ export async function callLocalOllama({ model, prompt, fetchImpl = fetch }) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       model, prompt, stream: false, format: 'json',
-      options: { temperature: 0.2, num_predict: 1100 },
+      options: { temperature: 0.2, num_predict: 750, num_ctx: 2048 },
     }),
     signal: AbortSignal.timeout(120000),
   });
   if (!response || response.ok !== true)
-    throw new Error('Local Ollama request failed. Check the installed model and service.');
+    throw new Error('Local Ollama HTTP error '+(Number.isInteger(response?.status)?response.status:'unknown')+'. Check installed model and local service memory.');
   // Bound response bytes before JSON parsing. No retry on ambiguous outcomes.
   const result = await response.text();
   if (result.length > 20000)
