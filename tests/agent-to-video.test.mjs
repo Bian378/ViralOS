@@ -63,6 +63,11 @@ test('operator approved simulation binds four mock agents to unapproved video pi
   assert.equal(result.captionsSynchronizedToSpeech,false);
   const manifest=JSON.parse(readFileSync(join(result.directory,'source-DRAFT.json'),'utf8'));
   assert.equal(manifest.notForPublication,true);
+  const review=JSON.parse(readFileSync(join(result.directory,'review-queue-item-DRAFT.json'),'utf8'));
+  assert.equal(review.state,'LOCAL_DRAFT_AWAITING_OWNER_REVIEW');
+  assert.equal(review.permissions.canAutomaticallyPublish,false);
+  assert.equal(review.canBeImportedIntoAuthenticatedQueueAutomatically,false);
+  assert.equal(review.video.sha256,result.draftSha256);
 }));
 
 test('explicit consent is checked before any model calls',()=>inFolder(async root=>{

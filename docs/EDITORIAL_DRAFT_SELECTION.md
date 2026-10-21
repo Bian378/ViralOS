@@ -51,3 +51,22 @@ resilience, not a claim that Qwen2.5 1.5B is now dependable.
 
 All work remains in the unmerged draft PR. No changes to the live
 AppDeploy site, Google/YouTube credentials or publishing gates.
+
+## Portable local draft review packet for future dashboard integration
+
+`scripts/review_queue_packet.mjs` produces a `review-queue-item-DRAFT.json`
+file only AFTER a local MP4 and its SHA-256 have passed the existing
+unapproved-video verification. It records selected manuscript SHA,
+selected agent, stages and local model call count, MP4 relative path,
+rendering metadata, and a human review checklist.
+
+The packet is NOT inserted into any live database or authenticated
+dashboard; it is a **local export format** only. Owner identity and
+permissions MUST be established by a server-side authenticated review
+queue when the deployment integration is eventually implemented.
+
+The review item always contains `canAutomaticallyPublish: false`,
+explicit unverified factual/rights/voice/caption quality statuses,
+and owner review pending. The item cannot authorize private YouTube
+upload or public release. A malicious video hash, altered script SHA
+or already-authorized report fails packet creation.

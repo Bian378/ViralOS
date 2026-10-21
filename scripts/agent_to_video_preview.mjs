@@ -10,6 +10,7 @@ import { pathToFileURL } from 'node:url';
 import { runLocalAgents } from './local_agent_pipeline.mjs';
 import { runFourRealAgents, MODEL as REAL_CHAT_MODEL } from './four_real_agents.mjs';
 import {createHash} from 'node:crypto';
+import {createLocalReviewPacket} from './review_queue_packet.mjs';
 
 function validateOptions(args) {
   if (args.explicitLocalConsent !== true)
@@ -109,6 +110,13 @@ export async function buildAgentVideoPreview({
     if(!validation||validation.result!=='DRAFT_INTEGRITY_CHECK_PASSED'||
        validation.uploadAllowed!==false||validation.publicReleaseAllowed!==false)
       throw new Error('Draft integrity or publication safety check failed.');
+    const reviewItem=createLocalReviewPacket({
+      topic,sourceUrl,manifest:draftManifest,report,
+      videoSha256:validation.sha256,
+      visualStyle:kineticPreview?'kinetic_procedural':'typography_static',
+    });
+    writeFileSync(join(root,'review-queue-item-DRAFT.json'),
+      JSON.stringify(reviewItem,null,2)+'\n',{flag:'wx'});
     return {
       directory:root,
       agentCount:(report.rolesExecuted||report.rolesRun).length,
@@ -120,6 +128,7 @@ export async function buildAgentVideoPreview({
       selectedDraftSha256:report.selectedDraftSha256??null,
       manuscriptFormatPassed:report.manuscriptFormatPassed??true,
       outputVideo:join(preview,'short-DRAFT.mp4'),
+      reviewPacket:join(root,'review-queue-item-DRAFT.json'),
       draftSha256:validation.sha256,
       status:'UNVERIFIED_DRAFT_REQUIRES_HUMAN_REVIEW',
       factsChecked:false,licensedMediaVerified:false,
