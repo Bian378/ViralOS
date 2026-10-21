@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test:offline": "node --experimental-strip-types --test tests/agent-workflow.test.mjs tests/manager-momentum.test.mjs tests/shorts-production-plan.test.mjs tests/subtitle-export.test.mjs tests/private-upload-gate.test.mjs tests/local-manifest.test.mjs tests/local-agent-pipeline.test.mjs tests/agent-to-video.test.mjs"
+    "test:offline": "node --experimental-strip-types --test tests/agent-workflow.test.mjs tests/manager-momentum.test.mjs tests/shorts-production-plan.test.mjs tests/subtitle-export.test.mjs tests/private-upload-gate.test.mjs tests/local-manifest.test.mjs tests/local-agent-pipeline.test.mjs tests/agent-to-video.test.mjs tests/youtube-popular.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.469.0",

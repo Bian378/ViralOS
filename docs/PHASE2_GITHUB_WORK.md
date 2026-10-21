@@ -161,3 +161,27 @@ authorization, atomic retries, quality review and YouTube OAuth.
   integrity check. This does NOT demonstrate real neural inference.
 - A real local Ollama model still needs separate install, user authorization
   and testing. No Vimeo, TikTok or YouTube uploads, no AppDeploy changes.
+
+## Manual low-quota YouTube popularity discovery (GitHub-only)
+
+src: `scripts/youtube_popular_discovery.mjs`. One manually authorized call to
+official YouTube Data API v3 `videos.list` with `chart=mostPopular`
+(documented by Google as 1 quota unit per request).
+Set `YOUTUBE_API_KEY` in the local environment. Do not paste keys into
+GitHub, source files, CLI options, saved logs, or a chat.
+
+    YOUTUBE_API_KEY='YOUR_LOCAL_KEY' node scripts/youtube_popular_discovery.mjs \
+      --region US --max-results 15 --out my-youtube-popular.json \
+      --allow-one-api-call
+
+**No call is made automatically** by this repository or CI.
+Output contains video title, channel, publishing date, total views,
+duration, and source URL. It deliberately makes no claims about:
+- verified Shorts status (video length alone is insufficient);
+- viral velocity or views/hour (one observation is insufficient);
+- factual truth or re-use rights of any third-party video.
+
+To measure velocity, a second real reading at a later time must be stored
+and compared with actual timestamps. The existing pure momentum module
+supports that later step. This collector currently performs ONE request
+and writes ONE timestamped snapshot; it is not an autonomous radar.
