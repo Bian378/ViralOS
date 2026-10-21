@@ -1,4 +1,4 @@
-name: Experimental real local Ollama draft (no AppDeploy)
+name: Experimental real lightweight local AI draft (no AppDeploy)
 on:
   pull_request:
     paths:
@@ -37,7 +37,7 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:11434/api/version
-          ollama pull qwen3:0.6b
+          ollama pull smollm2:360m-instruct-q4_K_M
           ollama list
       - name: Create genuine neural manuscript and validation report
         env:

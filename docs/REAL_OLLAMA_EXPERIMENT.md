@@ -11,3 +11,11 @@ An invalid manuscript remains a draft requiring revision, not approved output.
 No AppDeploy calls, payment, YouTube permissions, platform uploading,
 or video publication. GitHub Actions runner minutes/bandwidth may count
 against an account quota.
+
+## Diagnostic change: non-thinking alternative model
+Qwen3 0.6B produced malformed JSON on one pass and local Ollama HTTP 500 errors
+on structured/unstructured further tests. This experiment now uses
+SmolLM2 360M Instruct Q4_K_M, 271 MB, Apache-2.0.
+Registry: https://ollama.com/library/smollm2:360m-instruct-q4_K_M.
+This is a proof-of-local-inference test, not evidence of good screenplay quality.
+All prior failed runs remain in GitHub Action history for transparent troubleshooting.

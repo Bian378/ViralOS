@@ -8,7 +8,7 @@ import {makeLocalDraftPlan} from './create_draft_plan.mjs';
 
 if(!process.argv[2])throw new Error('Explicit new output folder needed.');
 const out=resolve(process.argv[2]);
-const model='qwen3:0.6b';
+const model='smollm2:360m-instruct-q4_K_M';
 const prompt=[
 '/no_think',
 'You are a ViralOS creative agent conducting a PRIVATE TEST only.',
@@ -23,12 +23,13 @@ const prompt=[
 ].join('\n');
 mkdirSync(out,{recursive:false});
 // Qwen3: official Ollama chat endpoint supports explicit non-thinking output.
+// SmolLM2 does not expose a reasoning mode. Prompt is untrusted input only.
 const response=await fetch('http://127.0.0.1:11434/api/chat',{
   method:'POST',
   headers:{'content-type':'application/json'},
   body:JSON.stringify({
     model,messages:[{role:'user',content:prompt}],
-    stream:false,think:false,
+    stream:false,
     options:{num_ctx:2048,num_predict:850,temperature:0.2},
   }),
   signal:AbortSignal.timeout(120000),
