@@ -5,6 +5,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {build} from 'esbuild';
 import {mkdtempSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -14,7 +15,19 @@ import {createLocalReviewPacket} from '../scripts/review_queue_packet.mjs';
 import {makeLocalDraftPlan} from '../scripts/create_draft_plan.mjs';
 
 const owner='authenticated-owner-123',stranger='authenticated-other-456';
-const sha='c'.repeat(64);
+const mp4Bytes=Buffer.alloc(2048);
+mp4Bytes.writeUInt32BE(24,0);mp4Bytes.write('ftyp',4,'ascii');
+mp4Bytes.write('isom',8,'ascii');
+mp4Bytes.write('isom',16,'ascii');
+const sha=createHash('sha256').update(mp4Bytes).digest('hex');
+async function* storedBytes(){
+ yield mp4Bytes.subarray(0,5);
+ yield mp4Bytes.subarray(5,19);
+ yield mp4Bytes.subarray(19);
+}
+async function* tamperedBytes(){
+ const altered=Buffer.from(mp4Bytes);altered[200]^=0xff;yield altered;
+}
 const fixture=readFileSync(new URL('./fixtures/qwen25-real-response.txt',import.meta.url),'utf8')
   .trim().split('\n').map(x=>x.trim()).filter(Boolean).join('\n\n');
 const packet=createLocalReviewPacket({
@@ -133,8 +146,9 @@ test('all routes require authentication and expose no untrusted import/upload op
  for(const handlers of Object.values(routes))assert.equal(handlers[0].requiredAuth,true);
 });
 test('server-only trusted import creates owner-index and refuses mismatched media hash',async()=>{
- await assert.rejects(trustedAddStoredReview(packet,{...context(),storedMp4Sha256:'b'.repeat(64)}),/changed/);
- const created=await trustedAddStoredReview(packet,context());
+ await assert.rejects(trustedAddStoredReview(packet,{...context(),storedMp4Sha256:'b'.repeat(64)},storedBytes),/SHA-256/);
+ await assert.rejects(trustedAddStoredReview(packet,context(),tamperedBytes),/SHA-256/);
+ const created=await trustedAddStoredReview(packet,context(),storedBytes);
  assert.equal(created.ownerId,owner);
  assert.equal(created.version,1);
  const list=await endpoint('GET /api/video-reviews');
@@ -190,7 +204,18 @@ test('owner can request changes once; CAS prevents concurrent override and uploa
  assert.equal(body(stored).ownerId,owner);
 });
 test('trusted import refuses duplicate IDs without replacing existing review',async()=>{
- await assert.rejects(trustedAddStoredReview(packet,context()),/duplicate-record/);
+ await assert.rejects(trustedAddStoredReview(packet,context(),storedBytes),/duplicate-record/);
+ const list=await endpoint('GET /api/video-reviews');
+ assert.equal(body(list).items.length,1);
+});
+test('a missing or truncated private media stream cannot create review entry',async()=>{
+ await assert.rejects(trustedAddStoredReview(packet,{
+   ...context(),queueId:'another-review-123'
+ }),/independently read/);
+ async function* tooShort(){yield new Uint8Array(30);}
+ await assert.rejects(trustedAddStoredReview(packet,{
+   ...context(),queueId:'another-review-123'
+ },tooShort),/MP4 file-type/);
  const list=await endpoint('GET /api/video-reviews');
  assert.equal(body(list).items.length,1);
 });
