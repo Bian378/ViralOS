@@ -52,14 +52,16 @@ test('cannot run without consent or valid HTTPS metadata',async()=>{
   await assert.rejects(runFourRealAgents({topic,sourceUrl,projectId:'../bad',explicitLocalConsent:true,invoke:f.invoke}),/safe project/);
   assert.equal(f.calls.length,0);
 });
-test('overlong but bounded draft is rejected after all four role boundaries',async()=>{
+test('invalid manager is bypassed only by an earlier format-valid draft',async()=>{
   const f=fake();
   const result=await runFourRealAgents({
     topic,sourceUrl,explicitLocalConsent:true,
     invoke:async x=>x.role==='manager'?Array(200).fill('notready').join(' '):f.invoke(x),
   });
-  assert.equal(result.draftManifest,null);
-  assert.equal(result.report.status,'MANUSCRIPT_REJECTED_BY_VALIDATOR');
+  assert.ok(result.draftManifest);
+  assert.equal(result.report.selectedDraftRole,'quality');
+  assert.equal(result.report.selectedDraftFromPriorAgent,true);
+  assert.equal(result.report.status,'UNVERIFIED_MANUSCRIPT_READY_FOR_HUMAN_REVIEW');
   assert.equal(result.report.publicReleaseAuthorized,false);
 });
 test('failure at research stops later model calls and never claims review completed',async()=>{
@@ -103,7 +105,7 @@ test('rejected final script saves review, never a renderable manifest',()=>sandb
   const destination=join(root,'invalid');
   await saveFourAgentReview({outputDir:destination,topic,sourceUrl,explicitLocalConsent:true,
     run:arg=>runFourRealAgents({...arg,invoke:async({role})=>
-      role==='manager'?'incomplete script':role==='research'?'claims unverified':script})});
+      role==='research'?'claims unverified':'incomplete script'})});
   assert.equal(existsSync(join(destination,'source-DRAFT.json')),false);
   assert.equal(JSON.parse(readFileSync(join(destination,'four-agent-review-UNVERIFIED.json'),'utf8')).published,false);
 }));
