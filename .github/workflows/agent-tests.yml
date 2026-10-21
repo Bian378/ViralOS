@@ -9,6 +9,7 @@ on:
       - 'src/subtitle-export.ts'
       - 'src/ShortsPlanPreview.tsx'
       - 'src/App.tsx'
+      - 'worker/**'
       - 'tests/*.test.mjs'
       - 'package.json'
       - '.github/workflows/agent-tests.yml'
@@ -28,3 +29,5 @@ jobs:
           node-version: '22.16.0'
       - name: Test agent safety contracts and measured YouTube velocity
         run: node --experimental-strip-types --test tests/agent-workflow.test.mjs tests/manager-momentum.test.mjs tests/shorts-production-plan.test.mjs tests/subtitle-export.test.mjs
+      - name: Python renderer contract tests (offline)
+        run: python3 -m unittest discover -s worker/tests -p 'test_*.py' -v
