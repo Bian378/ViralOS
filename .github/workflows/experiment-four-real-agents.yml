@@ -1,0 +1,70 @@
+name: One-time four REAL Qwen2.5 editorial agents
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/experiment-four-real-agents.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: four-real-agents-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  four-real-english-stages:
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == true && contains(github.event.pull_request.title, '[RUN FOUR REAL ONCE]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: Install Ollama on temporary GitHub runner
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          command -v ollama
+      - name: Connect to loopback Ollama and install free Qwen2.5 1.5B
+        run: |
+          export OLLAMA_HOST=127.0.0.1:11434
+          if ! curl -fsS http://127.0.0.1:11434/api/version > /dev/null; then
+            OLLAMA_CONTEXT_LENGTH=2048 OLLAMA_NUM_PARALLEL=1 nohup ollama serve > "$RUNNER_TEMP/ollama.log" 2>&1 &
+          fi
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:11434/api/version >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:11434/api/version
+          ollama pull qwen2.5:1.5b-instruct-q4_K_M
+      - name: Four genuine local neural stages and quality gate
+        run: |
+          node scripts/run_four_real_agents.mjs \
+            --topic "A fictional city that remembers the choices in a game" \
+            --source-url https://example.org/viralos-original-fiction \
+            --out-dir "$RUNNER_TEMP/real-four" --allow-four-local-calls
+          test -s "$RUNNER_TEMP/real-four/four-agent-review-UNVERIFIED.json"
+      - name: If final storyboard passed, render genuine draft with kinetic style
+        run: |
+          if test -s "$RUNNER_TEMP/real-four/source-DRAFT.json"; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
+            python3 worker/build_short_draft.py \
+              "$RUNNER_TEMP/real-four/source-DRAFT.json" \
+              "$RUNNER_TEMP/real-four/kinetic-video" --silent-preview --kinetic-preview
+            python3 worker/verify_draft.py "$RUNNER_TEMP/real-four/kinetic-video"
+          else
+            echo "Final manager manuscript rejected; no video created."
+          fi
+      - name: Save editorial report and optional silent draft MP4 (NO models)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ViralOS-FOUR-REAL-AGENTS-UNAPPROVED
+          path: |
+            ${{ runner.temp }}/real-four/four-agent-review-UNVERIFIED.json
+            ${{ runner.temp }}/real-four/source-DRAFT.json
+            ${{ runner.temp }}/real-four/kinetic-video/short-DRAFT.mp4
+            ${{ runner.temp }}/real-four/kinetic-video/draft-receipt.json
+          retention-days: 2
+          if-no-files-found: warn
