@@ -77,3 +77,28 @@ Improvements after this observation:
 An additional opt-in single-run model experiment checks whether those
 changes help. Never weaken factual review, rights review, owner approval
 or the production format gate to improve the pass rate.
+
+## Follow-up genuine trial with shorter prompts: result
+
+- GitHub run 39674109622 used the same four genuine Qwen2.5 1.5B agents,
+  sequentially and with bounded previous-stage excerpts and token ceilings.
+- This time the creative model produced about 20 words; quality repeated
+  roughly 20 and the manager returned 19 words. The research stage again
+  identified nothing externally verified, and no web browsing took place.
+- The result was MANUSCRIPT_REJECTED_BY_VALIDATOR (too few words).
+  No video was rendered or uploaded; the receipt explicitly says
+  publicReleaseAuthorized=false and humanApproved=false.
+- The first genuine trial was 444 words (too long); the second was
+  19 words (too short). Both runs technically completed four model stages.
+- Ordinary test suite remains green; it verifies contracts, not whether
+  the tiny local language model can produce a compelling manuscript.
+- The GitHub experiment workflow now writes both *technical* completion and
+  *content* acceptance separately to the Actions step summary, to avoid
+  mistaking an all-green workflow for publishable editorial content.
+
+**Recommendation:** Do NOT relax the script gate to force a success.
+Test a more capable local language model, and split agents by narrow
+responsibilities (draft creation, claim flagging, concise quality edits,
+final validation) before spending more GitHub-hosted runner minutes.
+Prefer hardware installed on the user's own machine or an explicitly
+budget-approved compute environment for ongoing experiments.
