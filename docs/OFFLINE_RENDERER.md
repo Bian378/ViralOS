@@ -31,7 +31,7 @@ python3 -m unittest discover -s worker/tests -p 'test_*.py' -v
 ## Free local Piper English AI voice preparation
 
 An **optional** local Piper voice can prepare an original WAV without consuming
-AppDeploy API credits. Piper CLI, its matching English ONNX model and configuration,
+AppDeploy API credits. Piper Python module (`pip install piper-tts`), its matching English ONNX model and configuration,
 and your own check of that model's redistribution/commercial-usage license are
 required first. Nothing is automatically downloaded or installed.
 
@@ -58,3 +58,5 @@ approved or published video. It creates only a local draft MP4/QC JSON.
 
 CI uses synthetic WAV tones to check AAC audio muxing and proportional scene
 retiming. A tone is not a Piper voice and should never be passed off as one.
+
+The current OHF-Voice Piper CLI is used: `python -m piper -m name --data-dir /already/local/voices -f output.wav -- "English script"`. Piper is not bundled or installed automatically. The model license is a separate operator responsibility.

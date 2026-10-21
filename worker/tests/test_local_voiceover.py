@@ -24,8 +24,8 @@ def setup(root):
         json.dumps({"language": {"code": "en_US"}}), encoding="utf-8")
     return path, model, root / "voice.wav"
 
-def fake_piper(cmd, *, input, text, check, timeout, stdout, stderr):
-    destination = Path(cmd[cmd.index("--output_file") + 1])
+def fake_piper(cmd, *, text, check, timeout, stdout, stderr):
+    destination = Path(cmd[cmd.index("-f") + 1])
     with wave.open(str(destination), "wb") as out:
         out.setnchannels(1)
         out.setsampwidth(2)
@@ -40,7 +40,7 @@ class LocalPiperTests(unittest.TestCase):
             path, model, out=setup(root)
             with patch.object(local.subprocess, "run") as runner:
                 with self.assertRaisesRegex(ValueError,"license review"):
-                    local.create_local_voiceover(path,model,out,piper_bin="/usr/bin/piper")
+                    local.create_local_voiceover(path,model,out)
                 runner.assert_not_called()
 
     def test_missing_local_model_and_config_rejected(self):
@@ -49,11 +49,11 @@ class LocalPiperTests(unittest.TestCase):
             path,model,out=setup(root)
             model.unlink()
             with self.assertRaisesRegex(ValueError,"local Piper"):
-                local.create_local_voiceover(path,model,out,True,piper_bin="/usr/bin/piper")
+                local.create_local_voiceover(path,model,out,True)
             model.write_bytes(b"test")
             model.with_suffix(".onnx.json").unlink()
             with self.assertRaisesRegex(ValueError,"matching local voice"):
-                local.create_local_voiceover(path,model,out,True,piper_bin="/usr/bin/piper")
+                local.create_local_voiceover(path,model,out,True)
 
     def test_other_language_voice_is_not_allowed(self):
         with tempfile.TemporaryDirectory() as d:
@@ -62,16 +62,16 @@ class LocalPiperTests(unittest.TestCase):
             model.with_suffix(".onnx.json").write_text(
                 json.dumps({"language":{"code":"sv_SE"}}),encoding="utf-8")
             with self.assertRaisesRegex(ValueError,"English Piper voice"):
-                local.create_local_voiceover(path,model,out,True,piper_bin="/usr/bin/piper")
+                local.create_local_voiceover(path,model,out,True)
 
-    def test_missing_executable_fails_with_no_calls(self):
+    def test_missing_piper_module_fails_with_no_calls(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)
             path,model,out=setup(root)
             with patch.object(local.subprocess,"run") as run:
-                with patch.object(local.shutil,"which",return_value=None):
+                with patch.object(local.importlib.util,"find_spec",return_value=None):
                     with self.assertRaisesRegex(ValueError,"locally installed Piper"):
-                        local.create_local_voiceover(path,model,out,True,piper_bin="totally-unknown-piper-exe")
+                        local.create_local_voiceover(path,model,out,True)
                     run.assert_not_called()
 
     def test_correct_piper_cli_and_honest_voice_receipt(self):
@@ -79,11 +79,13 @@ class LocalPiperTests(unittest.TestCase):
             root=Path(d)
             path,model,out=setup(root)
             with patch.object(local.subprocess,"run",side_effect=fake_piper) as runner:
-                with patch.object(local.shutil,"which",return_value="/opt/piper"):
+                with patch.object(local.importlib.util,"find_spec",return_value=object()):
                     report=local.create_local_voiceover(path,model,out,True)
             self.assertTrue(runner.called)
             args=runner.call_args
-            self.assertEqual(args.args[0][:2],["piper","--model"])
+            self.assertEqual(args.args[0][1:3],["-m","piper"])
+            self.assertEqual(args.args[0][3:5],["-m",model.stem])
+            self.assertEqual(args.args[0][-1], " ".join(("English " * 50 + "voice " * 50).split()))
             self.assertEqual(args.kwargs["timeout"],180)
             self.assertNotIn("https://",str(args.args[0]))
             self.assertTrue(out.is_file())
@@ -100,7 +102,7 @@ class LocalPiperTests(unittest.TestCase):
             path,model,out=setup(root)
             out.write_bytes(b"important existing audio")
             with self.assertRaisesRegex(ValueError,"new, writable"):
-                local.create_local_voiceover(path,model,out,True,piper_bin="/usr/bin/piper")
+                local.create_local_voiceover(path,model,out,True)
             self.assertEqual(out.read_bytes(),b"important existing audio")
 
     def test_malformed_manifest_cannot_start_piper(self):
@@ -110,7 +112,7 @@ class LocalPiperTests(unittest.TestCase):
             path.write_text("{}",encoding="utf-8")
             with patch.object(local.subprocess, "run") as runner:
                 with self.assertRaisesRegex(ValueError,"draft"):
-                    local.create_local_voiceover(path,model,out,True,piper_bin="/usr/bin/piper")
+                    local.create_local_voiceover(path,model,out,True)
                 runner.assert_not_called()
 
     def test_failed_command_removes_partial_audio(self):
@@ -121,7 +123,7 @@ class LocalPiperTests(unittest.TestCase):
                 out.write_bytes(b"partial")
                 raise RuntimeError("piper error")
             with patch.object(local.subprocess,"run",side_effect=failure):
-                with patch.object(local.shutil,"which",return_value="/opt/piper"):
+                with patch.object(local.importlib.util,"find_spec",return_value=object()):
                     with self.assertRaisesRegex(RuntimeError,"piper error"):
                         local.create_local_voiceover(path,model,out,True)
             self.assertFalse(out.exists())
@@ -133,7 +135,7 @@ class LocalPiperTests(unittest.TestCase):
             def invalid(*args,**kw):
                 out.write_bytes(b"not-a-wav")
             with patch.object(local.subprocess,"run",side_effect=invalid):
-                with patch.object(local.shutil,"which",return_value="/opt/piper"):
+                with patch.object(local.importlib.util,"find_spec",return_value=object()):
                     with self.assertRaises(Exception):
                         local.create_local_voiceover(path,model,out,True)
             self.assertFalse(out.exists())

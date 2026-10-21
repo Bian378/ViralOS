@@ -9,7 +9,8 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-import shutil
+import importlib.util
+import sys
 import subprocess
 import wave
 
@@ -45,7 +46,7 @@ def wav_duration(path: Path) -> float:
         return audio.getnframes() / audio.getframerate()
 
 def create_local_voiceover(manifest: Path, model: Path, destination: Path,
-                           voice_license_checked: bool = False, piper_bin: str = "piper") -> dict:
+                           voice_license_checked: bool = False) -> dict:
     # Validate ALL owner-controlled input before launching a subprocess.
     plan = load_and_validate(manifest)
     if voice_license_checked is not True:
@@ -53,16 +54,17 @@ def create_local_voiceover(manifest: Path, model: Path, destination: Path,
     model = model.resolve()
     english_voice_config(model)
     text = narration_text(plan)
-    if not isinstance(piper_bin, str) or not piper_bin or \
-       not (Path(piper_bin).is_file() or shutil.which(piper_bin)):
-        raise ValueError("A locally installed Piper executable is required.")
+    if importlib.util.find_spec("piper") is None:
+        raise ValueError("A locally installed Piper Python module is required.")
     destination = destination.resolve()
     if destination.suffix.lower() != ".wav" or not destination.parent.is_dir() or \
        destination.exists():
         raise ValueError("A new, writable .wav destination is required.")
-    command = [piper_bin, "--model", str(model), "--output_file", str(destination)]
+    # OHF-Voice/piper1-gpl CLI; user supplies the local voice files.
+    command = [sys.executable, "-m", "piper", "-m", model.stem,
+               "--data-dir", str(model.parent), "-f", str(destination), "--", text]
     try:
-        subprocess.run(command, input=text + "\n", text=True, check=True,
+        subprocess.run(command, text=True, check=True,
                        timeout=180, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if not destination.is_file() or destination.stat().st_size < 100:
             raise ValueError("Piper did not produce a valid audio file.")
@@ -99,11 +101,10 @@ def main() -> None:
     parser.add_argument("model", type=Path, help="Existing, legally usable English .onnx voice")
     parser.add_argument("destination", type=Path)
     parser.add_argument("--voice-license-checked", action="store_true")
-    parser.add_argument("--piper-bin", default="piper")
     arguments = parser.parse_args()
     print(json.dumps(create_local_voiceover(
         arguments.manifest, arguments.model, arguments.destination,
-        arguments.voice_license_checked, arguments.piper_bin),
+        arguments.voice_license_checked),
         indent=2, ensure_ascii=False))
 
 if __name__ == "__main__":
