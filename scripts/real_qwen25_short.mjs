@@ -31,7 +31,15 @@ export function inspectOriginalScript(candidate) {
     return {valid:false,reason:'Empty AI response',words:0};
   if (candidate.length>5000)
     return {valid:false,reason:'AI response exceeds 5000 characters',words:0};
-  const script=candidate.replace(/\r\n/g,'\n').trim();
+  const original=candidate.replace(/\r\n/g,'\n').trim();
+  // One safe formatting repair: some local models use one newline per scene
+  // instead of blank-line paragraph separators. Never add/remove words.
+  const lines=original.split('\n').map(x=>x.trim()).filter(Boolean);
+  const paragraphCount=original.split(/\n\s*\n/).filter(x=>x.trim()).length;
+  const firstLineWords=(lines[0]||'').split(/\s+/).filter(Boolean).length;
+  const canNormalize=paragraphCount===1 && lines.length>=3 && lines.length<=8
+    && firstLineWords>=3 && firstLineWords<=8;
+  const script=canNormalize?lines.join('\n\n'):original;
   if (script.startsWith(String.fromCharCode(96)) || /^#{1,6}\s|^\s*[-*]\s/m.test(script))
     return {valid:false,reason:'Markdown or list formatting is not accepted',words:0};
   const words=script.split(/\s+/).length;
@@ -39,7 +47,7 @@ export function inspectOriginalScript(candidate) {
     const manifest=makeLocalDraftPlan({
       title:TITLE,script,sourceUrl:SOURCE,projectId:'real-qwen25-evaluation',revision:1,
     });
-    return {valid:true,script,words,manifest};
+    return {valid:true,script,words,manifest,normalizationApplied:canNormalize};
   }catch(e){
     return {valid:false,words,reason:String(e?.message||e).slice(0,200)};
   }
@@ -93,6 +101,7 @@ export async function runRealScriptTrial({
     const checked=inspectOriginalScript(raw);
     attempts.push({number:i+1,valid:checked.valid,words:checked.words,
       reason:checked.valid?null:checked.reason,
+      normalizationApplied:checked.valid?checked.normalizationApplied:false,
       rawScript:typeof raw==='string'?raw.slice(0,5000):''});
     if(checked.valid){ accepted=checked; break; }
   }
