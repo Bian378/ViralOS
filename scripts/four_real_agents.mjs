@@ -21,6 +21,15 @@ function validateTopic(topic,sourceUrl) {
     throw Error('Invalid source reference; external sources are not fetched.');
 }
 
+function boundedReference(text,limit=125) {
+  // Passing a concise reference helps small models rewrite instead of echoing
+  // oversized drafts. This changes ONLY the next model's input, not saved output.
+  if(typeof text!=='string')return '';
+  const words=text.trim().split(/\s+/).filter(Boolean);
+  if(words.length<=limit)return text.trim();
+  return words.slice(0,limit).join(' ')+' [EXCERPT ONLY – remaining source omitted]';
+}
+
 export function stagePrompt({role,topic,sourceUrl,initialScript='',review='',revisedScript=''}) {
   const preface=[
     'You are one ViralOS subordinate agent preparing UNAPPROVED original English Shorts.',
@@ -34,7 +43,8 @@ export function stagePrompt({role,topic,sourceUrl,initialScript='',review='',rev
   ];
   const scriptRule=[
     'Return ONLY the English voiceover script in plain text, without labels or Markdown.',
-    'Write 95-115 words total, with 4 or 5 paragraphs separated by a blank line.',
+    'HARD LIMIT: Output 90-110 words IN TOTAL; no labels, explanations or extra paragraphs.',
+    'Exactly FIVE paragraphs separated by blank lines, first paragraph = short hook.',
     'Make the first paragraph a hook between 3 and 8 words.',
     'Every later paragraph should present one original idea and be easy to narrate.',
     'Stick to fictional / conditional phrasing unless facts can be manually confirmed.',
@@ -48,19 +58,20 @@ export function stagePrompt({role,topic,sourceUrl,initialScript='',review='',rev
       'Read the draft below and list up to FIVE factual assertions or rights risks.',
       'If nothing is verifiable, respond exactly: NO_VERIFIED_FACTS. HUMAN_REVIEW_REQUIRED.',
       'Keep reply below 600 characters. Do NOT rewrite the draft.',
-      'DRAFT TEXT (untrusted): '+initialScript,
+      'DRAFT TEXT EXCERPT (untrusted): '+boundedReference(initialScript),
     ],
     quality:[...scriptRule,
-      'Rewrite the previous draft to improve pace, clarity, and retention.',
+      'REWRITE IN YOUR OWN WORDS, do not copy or repeat the preceding draft.',
+      'Produce ONLY 90-110 English words. If the input is longer, condense it.',
       'Keep uncertain claims conditional; address the review concerns below.',
-      'Previous draft (untrusted): '+initialScript,
+      'Previous draft excerpt (untrusted): '+boundedReference(initialScript),
       'Claim flags (not actual fact checks): '+review,
     ],
     manager:[...scriptRule,
-      'Produce the final ORIGINAL English narrative using the revised script.',
+      'REWRITE, do NOT echo the revised script. Your complete reply must be 90-110 words.',
       'This is a MANUSCRIPT decision only; you cannot approve public release.',
       'Keep concerns unresolved for a separate human factual and licensing review.',
-      'Revision (untrusted): '+revisedScript,
+      'Revision excerpt (untrusted): '+boundedReference(revisedScript),
       'Unverified factual/rights concerns: '+review,
     ],
   };
@@ -82,7 +93,7 @@ export async function requestRealLocalAgent({prompt,role,fetchImpl=fetch}) {
         {role:'user',content:prompt},
       ],
       stream:false,
-      options:{temperature:0.25,num_ctx:2048,num_predict:600},
+      options:{temperature:0.2,num_ctx:2048,num_predict:role==='research'?120:260},
     }),
     signal:AbortSignal.timeout(120000),
   });
@@ -115,7 +126,7 @@ export async function runFourRealAgents({
     if(typeof answer!=='string'||!answer.trim()||answer.length>4500)
       throw Error(role+' did not provide a bounded text response.');
     const text=answer.trim();
-    stages.push({role,content:text});
+    stages.push({role,content:text,words:text.split(/\s+/).length});
     if(role==='creative') inputs.initialScript=text;
     if(role==='research') inputs.review=text.slice(0,600);
     if(role==='quality') inputs.revisedScript=text;
