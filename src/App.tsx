@@ -43,6 +43,7 @@ import SystemCheck from './SystemCheck';
 import TrendLab from './TrendLab';
 import QualityWorkbench from './ScriptQuality';
 import EditorialWorkflow from './EditorialWorkflow';
+import ShortsPlanPreview from './ShortsPlanPreview';
 import { revisionOf, scriptHash, type ScriptReview } from './review';
 
 const navigation = [
@@ -877,6 +878,7 @@ export default function App() {
                       </p>
                     </div>
                   </div>
+                  <ShortsPlanPreview project={edit} />
                   <EditorialWorkflow
                     project={edit}
                     saved={state.projects.find(p => p.id === edit.id) || null}
