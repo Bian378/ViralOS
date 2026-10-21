@@ -28,8 +28,8 @@ const response=await fetch('http://127.0.0.1:11434/api/chat',{
   headers:{'content-type':'application/json'},
   body:JSON.stringify({
     model,messages:[{role:'user',content:prompt}],
-    stream:false,format:'json',think:false,
-    options:{num_ctx:2048,num_predict:1300,temperature:0.2},
+    stream:false,think:false,
+    options:{num_ctx:2048,num_predict:850,temperature:0.2},
   }),
   signal:AbortSignal.timeout(120000),
 });
