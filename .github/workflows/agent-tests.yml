@@ -29,5 +29,12 @@ jobs:
           node-version: '22.16.0'
       - name: Test agent safety contracts and measured YouTube velocity
         run: node --experimental-strip-types --test tests/agent-workflow.test.mjs tests/manager-momentum.test.mjs tests/shorts-production-plan.test.mjs tests/subtitle-export.test.mjs
+      - name: Install free FFmpeg and DejaVu Sans for real preview smoke test
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
       - name: Python renderer contract tests (offline)
         run: python3 -m unittest discover -s worker/tests -p 'test_*.py' -v
+      - name: Assert FFmpeg smoke test actually ran
+        run: |
+          command -v ffmpeg
+          command -v ffprobe
+          test -f /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
