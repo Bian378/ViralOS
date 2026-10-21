@@ -47,7 +47,7 @@ test('SRT cue timestamps never overlap or lose planned captions',()=>{
 test('subtitle export rejects overlap and missing final scene',()=>{
   const plan=create();
   const overlap=structuredClone(plan);
-  overlap.scenes[0].captionCues[1].startFrame=0;
+  overlap.scenes[1].captionCues[1].startFrame=overlap.scenes[1].captionCues[0].startFrame;
   assert.throws(()=>createDraftSrt(overlap),/overlapping/);
   const missing=structuredClone(plan);
   missing.scenes.at(-1).captionCues.pop();
