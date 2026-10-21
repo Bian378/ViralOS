@@ -58,7 +58,10 @@ test('counter corrections are not counted as growth',()=>{
 
 test('reject mismatched country, invalid interval, stale data and forged source links',()=>{
   assert.throws(()=>buildCandidateRadar({latest:{...later,region:'GB'},earlier:original,asOf:now}),/same region/);
-  assert.throws(()=>buildCandidateRadar({latest:later,earlier:{...original,observedAt:'2026-10-21T18:55:00Z'},asOf:now}),/15 minutes/);
+  const tooClose=structuredClone(original);
+  tooClose.observedAt='2026-10-21T18:55:00Z';
+  tooClose.candidates.forEach(c=>{c.observedAt=tooClose.observedAt;});
+  assert.throws(()=>buildCandidateRadar({latest:later,earlier:tooClose,asOf:now}),/15 minutes/);
   assert.throws(()=>buildCandidateRadar({latest:later,earlier:original,asOf:'2026-10-23T20:00:00Z'}),/not current enough/);
   const changed=clean();
   changed.candidates[0].sourceUrl='https://evil.example/ABCDEFGHIJK';
