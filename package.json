@@ -11,6 +11,7 @@
   "dependencies": {
     "lucide-react": "^0.469.0",
     "mp4-muxer": "5.2.2",
+    "kokoro-js": "1.2.1",
     "@types/dom-webcodecs": "^0.1.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

@@ -36,6 +36,7 @@ import {
   type Trend,
 } from './model';
 import { renderMP4 } from './render';
+import { synthesizeStory } from './local-ai-voice';
 import type { Mp4TrackProof } from './mp4-proof';
 import VideoSelfTest from './VideoSelfTest';
 import type { VideoStyle } from './video-timeline';
@@ -200,6 +201,10 @@ export default function App() {
   const [rendering, setRendering] = useState(false);
   const [narrationFile, setNarrationFile] = useState<File | null>(null);
   const [narrationRights, setNarrationRights] = useState(false);
+  const [generatedNeuralVoice, setGeneratedNeuralVoice] = useState(false);
+  const [aiWorking, setAiWorking] = useState(false);
+  const [aiStatus, setAiStatus] = useState('');
+  const [selectedVoice, setSelectedVoice] = useState<'af_heart' | 'am_michael' | 'bm_george'>('af_heart');
   const [videoStyle, setVideoStyle] = useState<VideoStyle>('cinematic');
   const [narrationPreview, setNarrationPreview] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
@@ -210,6 +215,10 @@ export default function App() {
   const renderUrl = useRef<string | null>(null);
   const loadGeneration = useRef(0);
   const pendingRecoveryTest = useRef(false);
+  const currentEditor = useRef(edit);
+  const currentOwner = useRef(user?.userId);
+  currentEditor.current = edit;
+  currentOwner.current = user?.userId;
 
   useEffect(() => {
     if (!narrationFile) { setNarrationPreview(null); return; }
@@ -309,6 +318,7 @@ export default function App() {
     invalidate();
     setNarrationFile(null);
     setNarrationRights(false);
+    setGeneratedNeuralVoice(false);
     setEdit(project);
     setPage('studio');
     setError('');
@@ -362,8 +372,59 @@ export default function App() {
       setToast('Manuset är sparat');
     });
   }
+  async function createNeuralShort() {
+    if (!user || aiWorking || rendering || busy || uploadingReview) return;
+    const saved = state.projects.find(p => p.id === edit.id);
+    if (!saved || saved.title !== edit.title || saved.script !== edit.script ||
+        saved.sourceUrl !== edit.sourceUrl || saved.revision !== edit.revision) {
+      setError('Spara först exakt den här manusversionen. Ingen gammal text ska läsas upp.');
+      return;
+    }
+    const manuscript = { ...edit };
+    const ownerId = user.userId;
+    setError('');
+    setAiWorking(true);
+    setRendering(true);
+    setProgress(0);
+    setAiStatus('Förbereder riktig neural AI-röst...');
+    invalidate();
+    setNarrationFile(null);
+    setGeneratedNeuralVoice(false);
+    try {
+      const file = await synthesizeStory(manuscript.script, selectedVoice, setAiStatus);
+      const isCurrent = () => currentOwner.current === ownerId &&
+        currentEditor.current.id === manuscript.id &&
+        currentEditor.current.script === manuscript.script &&
+        currentEditor.current.title === manuscript.title &&
+        currentEditor.current.sourceUrl === manuscript.sourceUrl &&
+        currentEditor.current.revision === manuscript.revision;
+      if (!isCurrent()) throw Error('Manuset eller kontot ändrades. Resultatet förkastades.');
+      setAiStatus('Skapar en riktig 9:16 MP4 med den nya AI-rösten...');
+      const movie = await renderMP4(manuscript.script, setProgress, file, videoStyle);
+      if (!isCurrent()) {
+        URL.revokeObjectURL(movie.url);
+        throw Error('Manuset ändrades under exporten. Videon sparades inte.');
+      }
+      setNarrationFile(file);
+      setGeneratedNeuralVoice(true);
+      setNarrationRights(false);
+      renderUrl.current = movie.url;
+      setRendered({ ...movie, draft: {
+        title: manuscript.title, script: manuscript.script,
+        sourceUrl: manuscript.sourceUrl, origin: manuscript.origin,
+      }});
+      setAiStatus('AI-röst och MP4 klara. Lyssna i förhandsgranskningen.');
+      setToast('En riktig AI-Short är skapad. Granska allt innan vidare användning.');
+    } catch (e) {
+      setAiStatus('');
+      setError(errorMessage(e));
+    } finally {
+      setAiWorking(false);
+      setRendering(false);
+    }
+  }
   async function exportVideo() {
-    if (narrationFile && !narrationRights) {
+    if (narrationFile && !narrationRights && !generatedNeuralVoice) {
       setError('Bekräfta ljudfilens användningsrättigheter innan MP4-export.');
       return;
     }
@@ -905,6 +966,8 @@ export default function App() {
                           disabled={rendering}
                           onChange={e => {
                             invalidate();
+                            setNarrationFile(null);
+                            setGeneratedNeuralVoice(false);
                             setEdit({ ...edit, title: e.target.value });
                           }}
                         />
@@ -918,6 +981,8 @@ export default function App() {
                           disabled={rendering}
                           onChange={e => {
                             invalidate();
+                            setNarrationFile(null);
+                            setGeneratedNeuralVoice(false);
                             setEdit({ ...edit, script: e.target.value });
                           }}
                         />
@@ -931,6 +996,8 @@ export default function App() {
                           disabled={rendering}
                           onChange={e => {
                             invalidate();
+                            setNarrationFile(null);
+                            setGeneratedNeuralVoice(false);
                             setEdit({ ...edit, sourceUrl: e.target.value });
                           }}
                         />
@@ -1013,7 +1080,30 @@ export default function App() {
                     }}
                   />
                   <ShortsPlanPreview project={edit} saved={state.projects.find(p => p.id === edit.id) || null} />
-                  <VideoSelfTest disabled={busy || rendering || uploadingReview || state.paused.includes('studio')} style={videoStyle} />
+                  <section className="panel" style={{ marginTop: 20 }}>
+                    <div className="panel-header"><h2>AI-Short · riktig berättarröst</h2><Badge>Gratis lokal AI</Badge></div>
+                    <div className="panel-body">
+                      <p>Skapa neural engelsk berättarröst, animerade scener, text och färdig 9:16 MP4 från ditt sparade manus. Ingen testsignal används.</p>
+                      <label>Röst
+                        <select disabled={rendering || aiWorking} value={selectedVoice}
+                          onChange={event => setSelectedVoice(event.target.value as 'af_heart' | 'am_michael' | 'bm_george')}>
+                          <option value="af_heart">Heart · amerikansk kvinna</option>
+                          <option value="am_michael">Michael · amerikansk man</option>
+                          <option value="bm_george">George · brittisk man</option>
+                        </select>
+                      </label>
+                      <button className="primary" disabled={rendering || busy || aiWorking || uploadingReview || state.paused.includes('studio')}
+                        onClick={createNeuralShort}>
+                        {aiWorking ? 'Skapar AI-Short...' : 'Skapa AI-röst + färdig MP4'}
+                      </button>
+                      {aiStatus && <p className="smallprint" role="status">{aiStatus}</p>}
+                      <p className="smallprint">Första gången hämtas en modell på ungefär 90 MB från Hugging Face. All talgenerering sker på din dator, utan kostnad för en röst-API-tjänst eller AppDeploys AI-genereringskrediter. Det här är endast ett granskningsutkast – ingen video publiceras.</p>
+                    </div>
+                  </section>
+                  <details className="panel" style={{ marginTop: 20 }}>
+                    <summary>Teknisk ljudtest (syntetisk telefonliknande ton)</summary>
+                    <VideoSelfTest disabled={busy || rendering || uploadingReview || state.paused.includes('studio')} style={videoStyle} />
+                  </details>
                   <div className="panel" style={{ marginTop: 20 }}>
                     <div className="panel-body">
                       <strong>Återhämtning av privat videoimport</strong>
@@ -1046,18 +1136,21 @@ export default function App() {
                           onChange={event => {
                             invalidate();
                             setNarrationFile(event.target.files?.[0] || null);
+                            setGeneratedNeuralVoice(false);
                             setNarrationRights(false);
                           }} />
                       </label>
                       {narrationFile && <>
-                        <p className="smallprint">{narrationFile.name} · {(narrationFile.size / 1048576).toFixed(1)} MiB</p>
+                        <p className="smallprint">{generatedNeuralVoice ? 'Kokoro AI-röst · ' : ''}{narrationFile.name} · {(narrationFile.size / 1048576).toFixed(1)} MiB</p>
                         {narrationPreview && <audio controls src={narrationPreview} style={{ width: '100%' }} />}
-                        <label className="check"><input type="checkbox" checked={narrationRights}
-                          onChange={event => setNarrationRights(event.target.checked)}/>
-                          Jag har rätt att använda den här ljudfilen.
-                        </label>
+                        {generatedNeuralVoice ?
+                          <p className="smallprint">Lokalt skapad Kokoro AI-röst. Du behöver fortfarande kontrollera manus, fakta och rättigheter innan publicering.</p> :
+                          <label className="check"><input type="checkbox" checked={narrationRights}
+                            onChange={event => setNarrationRights(event.target.checked)}/>
+                            Jag har rätt att använda den här ljudfilen.
+                          </label>}
                         <button className="small ghost" disabled={rendering || uploadingReview}
-                          onClick={() => { invalidate(); setNarrationFile(null); setNarrationRights(false); }}>
+                          onClick={() => { invalidate(); setNarrationFile(null); setNarrationRights(false); setGeneratedNeuralVoice(false); }}>
                           Ta bort ljudfil
                         </button>
                       </>}

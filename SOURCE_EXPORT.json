@@ -1,12 +1,11 @@
 {
   "app": "ViralOS AI",
   "appId": "viralos-ai-dtmneg",
-  "source": "AppDeploy deployed source snapshot v32",
-  "snapshotVersion": "1792933899953",
-  "sourceFileCount": 55,
+  "source": "AppDeploy deployed v33 saved source",
+  "snapshotVersion": "1792934613249",
+  "sourceFileCount": 56,
   "exportDate": "2026-10-25",
   "liveUrl": "https://viralos-ai-dtmneg.v2.appdeploy.ai/",
-  "parentBranch": "work/viralos-live-v31-20261025",
-  "phase2DevelopmentBranch": "work/viralos-phase2-20261021",
+  "parentBranch": "work/viralos-live-v32-20261025",
   "youtubePublishingEnabled": false
 }

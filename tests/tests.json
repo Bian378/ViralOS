@@ -269,7 +269,12 @@
       "Stable monotonically increasing AAC packet timestamps during voiceover muxing",
       "No intermediate AAC flush; exactly one final flush avoids Chrome macOS repeated encoder padding",
       "Reject AAC packet totals or durations more than 0.2 s over the selected narration rather than disguising them as valid",
-      "Reject MP4 movie duration more than 0.25 s away from the intended duration"
+      "Reject MP4 movie duration more than 0.25 s away from the intended duration",
+      "One-click browser-local Kokoro neural English narration plus 9:16 MP4 from a saved manuscript",
+      "No neural model/API call before a human presses create",
+      "Exact script revision and owner identity gate neural result and final MP4",
+      "Changing a manuscript invalidates old neural voice to prevent reading old text",
+      "Manual video review remains required and no YouTube publication is added"
     ],
     "description": "A saved eligible manuscript can show a draft scene plan and export SRT/JSON without online AI calls.",
     "steps": [
@@ -297,6 +302,9 @@
       "Export a normal Short with no narration and verify confirmation reports 1 video and 0 audio tracks based on the MP4 container.",
       "Export with a licensed, selected voiceover and verify confirmation reports 1 video and exactly 1 audio track; any missing AAC track must reject the export rather than claim narration is present.",
       "Generate the same rights-checked voiceover video twice and verify both fully play with audible sound, with no non-monotonic DTS timestamp error during MP4 muxing.",
+      "Save a valid 90–110 word English manuscript. Click Skapa AI-röst + färdig MP4 and verify Kokoro downloads only on demand, speech reads the saved manuscript, MP4 has video and spoken AAC audio, and preview remains private.",
+      "Modify the script, reload or switch accounts before generation completes; stale voice and MP4 must not be committed for the wrong manuscript.",
+      "Fail Kokoro model loading or exceed 45 seconds of speech; the UI must show a real failure instead of publishing, silently omitting voice or claiming a completed Short.",
       "On Chrome macOS run the built-in 21-second synthetic AAC self-test and confirm MP4 movie duration is approximately 21 seconds rather than 22.42 seconds. Verify one video and one audio track, playable sound and SHA-256.",
       "Try 45-second speech audio and verify the encoder never performs intermediate AAC flushes, does not accumulate extra silence, and fails closed for more than 0.2 seconds of audio overrun."
     ],
