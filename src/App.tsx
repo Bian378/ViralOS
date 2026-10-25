@@ -8,14 +8,15 @@ import {
   CalendarDays,
   Check,
   ChevronRight,
+  ChevronDown,
+  Moon,
+  Sun,
   CircleHelp,
   Download,
   ExternalLink,
   Film,
   LayoutDashboard,
   LogOut,
-  Pause,
-  Play,
   Plus,
   Radar,
   RefreshCw,
@@ -27,7 +28,6 @@ import {
   Zap,
 } from 'lucide-react';
 import {
-  agents,
   initialState,
   signalGrowth,
   type Project,
@@ -36,18 +36,43 @@ import {
   type Trend,
 } from './model';
 import { renderMP4 } from './render';
+import type { Mp4TrackProof } from './mp4-proof';
+import VideoSelfTest from './VideoSelfTest';
+import type { VideoStyle } from './video-timeline';
+import { measuredYouTubeGrowth } from './youtube-growth';
 import JobCenter from './JobCenter';
+import Dashboard from './Dashboard';
+import AgentTeam from './AgentTeam';
+import SystemCheck from './SystemCheck';
+import TrendLab from './TrendLab';
+import QualityWorkbench from './ScriptQuality';
+import ShortsPlanPreview from './ShortsPlanPreview';
+import EditorialWorkflow from './EditorialWorkflow';
+import ReviewInboxPreview from './ReviewInboxPreview';
+import { buildLocalReviewPacket } from './local-review-packet';
+import { uploadLocalReviewDraft, clearIncompleteReviewUpload, reconcileStoredReviewUpload } from './cloud-review-client';
+import AutoTrendControl from './AutoTrendControl';
+import { revisionOf, scriptHash, type ScriptReview } from './review';
 
 const navigation = [
   { id: 'overview', name: 'Översikt', icon: LayoutDashboard },
   { id: 'agents', name: 'AI-agenter', icon: Bot },
   { id: 'jobs', name: 'Bakgrundsjobb', icon: Activity },
   { id: 'radar', name: 'Trendradar', icon: Radar },
+  { id: 'trend-lab', name: 'Trendlabb', icon: Radar },
   { id: 'studio', name: 'Videostudio', icon: Film },
+  { id: 'review-inbox', name: 'Videogranskning', icon: ShieldCheck },
   { id: 'calendar', name: 'Publicering', icon: CalendarDays },
   { id: 'analytics', name: 'Analys & tillväxt', icon: BarChart3 },
   { id: 'connections', name: 'Anslutningar', icon: Unplug },
   { id: 'settings', name: 'Inställningar', icon: Settings2 },
+  { id: 'system-check', name: 'Systemkontroll', icon: ShieldCheck },
+];
+const navigationGroups = [
+  { id: 'discover', name: 'Upptäck', icon: Radar, pages: ['radar', 'trend-lab'] },
+  { id: 'create', name: 'Skapa', icon: Film, pages: ['agents', 'jobs', 'studio'] },
+  { id: 'results', name: 'Resultat', icon: BarChart3, pages: ['review-inbox', 'calendar', 'analytics'] },
+  { id: 'system', name: 'System', icon: Settings2, pages: ['connections', 'settings', 'system-check'] },
 ];
 type Connections = {
   youtubeConfigured: boolean;
@@ -55,7 +80,19 @@ type Connections = {
   hnLastError: string | null;
 };
 type User = { userId: string; name?: string; email?: string };
-type Rendered = { blob: Blob; url: string; duration: number; bytes: number };
+type Rendered = {
+  blob: Blob;
+  url: string;
+  duration: number;
+  bytes: number;
+  withNarration: boolean;
+  mp4Proof: Mp4TrackProof;
+  style: VideoStyle;
+  subtitles: string;
+  scenes: number;
+  captionsEstimated: true;
+  draft: { title: string; script: string; sourceUrl: string; origin: string };
+};
 const date = (value: string) =>
   new Date(value).toLocaleString('sv-SE', {
     timeZone: 'Europe/Madrid',
@@ -142,6 +179,7 @@ function newProject(): Project {
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
+  const [workspaceReady, setWorkspaceReady] = useState(false);
   const [state, setState] = useState<State>(initialState);
   const [connections, setConnections] = useState<Connections>({
     youtubeConfigured: false,
@@ -149,6 +187,8 @@ export default function App() {
     hnLastError: null,
   });
   const [page, setPage] = useState('overview');
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
@@ -158,19 +198,76 @@ export default function App() {
   const [edit, setEdit] = useState<Project>(newProject);
   const [rendered, setRendered] = useState<Rendered | null>(null);
   const [rendering, setRendering] = useState(false);
+  const [narrationFile, setNarrationFile] = useState<File | null>(null);
+  const [narrationRights, setNarrationRights] = useState(false);
+  const [videoStyle, setVideoStyle] = useState<VideoStyle>('cinematic');
+  const [narrationPreview, setNarrationPreview] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [reviewed, setReviewed] = useState(false);
+  const [uploadingReview, setUploadingReview] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const aiRequest = useRef<{ trendId: string; id: string } | null>(null);
   const renderUrl = useRef<string | null>(null);
+  const loadGeneration = useRef(0);
+  const pendingRecoveryTest = useRef(false);
 
-  async function load() {
-    const [workspace, integration] = await Promise.all([
-      api.get('/api/state'),
-      api.get('/api/integrations'),
-    ]);
+  useEffect(() => {
+    if (!narrationFile) { setNarrationPreview(null); return; }
+    const url = URL.createObjectURL(narrationFile);
+    setNarrationPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [narrationFile]);
+
+  async function load(simulate503 = false) {
+    const generation = ++loadGeneration.current;
+    const workspace = await api.get(simulate503 ? '/api/system-check/simulated-503' : '/api/state');
+    if (generation !== loadGeneration.current) return;
     setState(workspace.data);
     setSettings(workspace.data.settings);
-    setConnections(integration.data);
+    setTheme(workspace.data.settings.theme === 'light' ? 'light' : 'dark');
+    setWorkspaceReady(true);
+    if (pendingRecoveryTest.current) {
+      pendingRecoveryTest.current = false;
+      setToast('Återhämtning godkänd: sparad arbetsyta kunde läsas efter testfelet.');
+    }
+    try {
+      const integration = await api.get('/api/integrations');
+      if (generation !== loadGeneration.current) return;
+      setConnections(integration.data);
+    } catch {
+      if (generation !== loadGeneration.current) return;
+      // A failed integration check must not hide saved projects or enable unverified providers.
+      setConnections({ youtubeConfigured: false, hnCachedAt: null, hnLastError: null });
+      setError('Arbetsytan laddades, men anslutningarnas status kunde inte kontrolleras. YouTube-funktioner är tillfälligt avstängda. Försök uppdatera status.');
+    }
+  }
+  async function changeTheme(next: 'dark' | 'light') {
+    if (next === theme) return;
+    const previous = theme;
+    setTheme(next);
+    setError('');
+    setBusy(true);
+    try {
+      await api.post('/api/theme', { theme: next });
+      await load();
+      setToast('Utseendet sparades för ditt konto.');
+    } catch (e) {
+      setTheme(previous);
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  useEffect(() => {
+    const found = navigationGroups.find(g => g.pages.includes(page));
+    setOpenGroup(found?.id ?? null);
+  }, [page]);
+  function simulateWorkspaceOutage() {
+    pendingRecoveryTest.current = true;
+    setWorkspaceReady(false);
+    setError('');
+    // Intentional 503 is caught by the same error/retry flow as failed workspace loading.
+    void load(true).catch(e => setError(errorMessage(e)));
   }
   useEffect(() => {
     auth
@@ -210,6 +307,8 @@ export default function App() {
   }
   function openProject(project: Project) {
     invalidate();
+    setNarrationFile(null);
+    setNarrationRights(false);
     setEdit(project);
     setPage('studio');
     setError('');
@@ -257,27 +356,86 @@ export default function App() {
       return;
     }
     await act(async () => {
-      const result = await api.post('/api/projects', edit);
+      const result = await api.post('/api/projects', { ...edit, revision: revisionOf(edit) });
       setEdit(result.data);
       await load();
       setToast('Manuset är sparat');
     });
   }
   async function exportVideo() {
+    if (narrationFile && !narrationRights) {
+      setError('Bekräfta ljudfilens användningsrättigheter innan MP4-export.');
+      return;
+    }
     setError('');
     setRendering(true);
     setProgress(0);
     invalidate();
     try {
-      const result = await renderMP4(edit.script, setProgress);
+      const draft = { title: edit.title, script: edit.script, sourceUrl: edit.sourceUrl, origin: edit.origin };
+      const result = await renderMP4(draft.script, setProgress, narrationFile, videoStyle);
       renderUrl.current = result.url;
-      setRendered(result);
-      setToast('MP4 klar. Mått och speltid verifierade i webbläsaren.');
+      setRendered({ ...result, draft });
+      setToast(result.withNarration
+        ? 'MP4 med berättarröst klar. Granska ljudet och textens timing.'
+        : 'Tyst MP4 klar. Mått och speltid verifierade.');
     } catch (e) {
       setError(errorMessage(e));
     } finally {
       setRendering(false);
     }
+  }
+  async function exportReviewPacket() {
+    if (!rendered) return;
+    setError('');
+    try {
+      const packet = await buildLocalReviewPacket(rendered.blob, rendered.draft, { narrationPresent: rendered.withNarration });
+      downloadText('review-queue-item-DRAFT.json', JSON.stringify(packet, null, 2), 'application/json');
+      setToast('Granskningsfil hämtad. Öppna Resultat → Videogranskning och välj JSON + samma MP4.');
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  }
+  async function saveVideoInPrivateQueue() {
+    if (!rendered || uploadingReview) return;
+    if (!confirm('Spara denna exakta MP4 i din privata granskningskö? Detta använder appens lagring och nätverk, men startar inga betalda AI-anrop eller YouTube-uppladdningar.')) return;
+    setError('');
+    setUploadingReview(true);
+    setUploadProgress(0);
+    try {
+      const packet = await buildLocalReviewPacket(rendered.blob, rendered.draft, { narrationPresent: rendered.withNarration });
+      await uploadLocalReviewDraft(rendered.blob, packet, setUploadProgress);
+      setToast('Videon är verifierad och sparad för privat granskning. Ingen publicering är tillåten.');
+      setPage('review-inbox');
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setUploadingReview(false);
+    }
+  }
+  async function recoverIncompleteReviewUpload() {
+    if (uploadingReview || rendering) return;
+    await act(async () => {
+      const response = await reconcileStoredReviewUpload();
+      if (response.resolved) {
+        setToast('Tidigare verifierad MP4 är återställd i den privata granskningskön.');
+        setPage('review-inbox');
+      } else if (response.status === 'unconfirmed') {
+        setError(response.message ||
+          'Det saknas ett bekräftat videokvitto. Ingen ny import startades.');
+      } else if (response.status === 'receiving') {
+        setToast('Videon är bara delvis uppladdad. Fortsätt med samma fil eller avbryt importen.');
+      } else {
+        setToast('Ingen verifierad video behöver återhämtas.');
+      }
+    });
+  }
+  async function cancelIncompleteReviewUpload() {
+    if (uploadingReview || !confirm('Avbryt pågående privat videoimport? Delar som ännu inte slutförts kan behöva städas bort. Färdiga granskningar påverkas inte.')) return;
+    await act(async () => {
+      const result = await clearIncompleteReviewUpload();
+      setToast(result.cancelled ? 'Ofullständig videoimport avbruten. Du kan börja en ny.' : 'Ingen avbrytbar import pågår.');
+    });
   }
   const filtered = state.trends.filter(
     t =>
@@ -288,6 +446,7 @@ export default function App() {
 
   function TrendCard({ trend }: { trend: Trend }) {
     const growth = signalGrowth(trend);
+    const youtubeVelocity = measuredYouTubeGrowth(trend);
     return (
       <div className="feed-row">
         <div className="feed-meta">
@@ -303,7 +462,11 @@ export default function App() {
         <div className="feed-meta">
           <span>
             {number(trend.value)} {trend.metric} ·{' '}
-            {growth === null
+            {trend.source === 'YouTube'
+              ? youtubeVelocity === null
+                ? 'Observerat råvärde · Shorts-format ej verifierat'
+                : number(Math.round(youtubeVelocity)) + ' uppmätta visningar/tim · Shorts-format ej verifierat'
+              : growth === null
               ? 'Tillväxt: otillräckligt underlag'
               : number(Math.round(growth)) + ' ' + trend.metric + '/tim'}
           </span>
@@ -342,39 +505,22 @@ export default function App() {
       </div>
     );
   }
-  function AgentPreview() {
+
+  if (user && !workspaceReady)
     return (
-      <div className="panel">
-        <div className="panel-header">
-          <h2>Agentteamet</h2>
-          <Badge>10 roller</Badge>
-        </div>
-        {agents.slice(4, 9).map(a => (
-          <div className="agent-mini" key={a.id}>
-            <span className="agent-icon">
-              <Bot size={16} />
-            </span>
-            <div>
-              <strong>{a.name.replace('AI ', '')}</strong>
-              <small>
-                {a.id === 'publishing'
-                  ? 'Kräver anslutning'
-                  : 'Manuellt arbetsflöde'}
-              </small>
-            </div>
-            <Badge tone={state.paused.includes(a.id) ? 'amber' : ''}>
-              {state.paused.includes(a.id) ? 'Pausad' : 'Väntar'}
-            </Badge>
-          </div>
-        ))}
-        <div style={{ padding: 15 }}>
-          <button className="ghost small" onClick={() => setPage('agents')}>
-            Öppna kontrollcenter →
+      <div className="login">
+        <div className="login-card">
+          <Brand />
+          <div className="eyebrow">SÄKER HÄMTNING AV ARBETSYTA</div>
+          <h1>{checking ? 'Läser din arbetsyta…' : 'Arbetsytan kunde inte hämtas.'}</h1>
+          <p>Vi visar inte en tom standardarbetsyta när sparade uppgifter inte kunnat läsas.</p>
+          {error && <div className="notice error" role="alert">{error}</div>}
+          <button className="primary" disabled={checking || busy} onClick={() => act(load)}>
+            {busy ? 'Kontrollerar…' : 'Försök igen'}
           </button>
         </div>
       </div>
     );
-  }
 
   if (!user)
     return (
@@ -440,7 +586,7 @@ export default function App() {
     );
 
   return (
-    <div className="shell">
+    <div className="shell" data-theme={theme}>
       <aside className="sidebar">
         <Brand />
         <div className="workspace">
@@ -452,20 +598,34 @@ export default function App() {
           </div>
         </div>
         <div className="nav-label">KONTROLLCENTER</div>
-        <nav>
-          {navigation.map(n => (
-            <button
-              key={n.id}
-              className={page === n.id ? 'active' : ''}
-              onClick={() => {
-                setPage(n.id);
-                setError('');
-              }}
-            >
-              <n.icon size={17} />
-              {n.name}
-            </button>
-          ))}
+        <nav aria-label="Kontrollcenter" className="simple-nav">
+          <button className={'nav-home ' + (page === 'overview' ? 'active' : '')}
+            aria-current={page === 'overview' ? 'page' : undefined}
+            onClick={() => { setPage('overview'); setOpenGroup(null); setError(''); }}>
+            <LayoutDashboard size={17} /> Översikt
+          </button>
+          {navigationGroups.map(group => {
+            const expanded = openGroup === group.id;
+            const active = group.pages.includes(page);
+            return <div className="nav-cluster" key={group.id}>
+              <button className={'nav-group-toggle ' + (active ? 'group-active' : '')}
+                aria-expanded={expanded} aria-controls={'nav-sub-' + group.id}
+                onClick={() => setOpenGroup(expanded ? null : group.id)}>
+                <group.icon size={17} />
+                <span>{group.name}</span>
+                <ChevronDown className={'nav-chevron ' + (expanded ? 'expanded' : '')} size={16} />
+              </button>
+              {expanded && <div className="nav-children" id={'nav-sub-' + group.id}>
+                {navigation.filter(item => group.pages.includes(item.id)).map(item =>
+                  <button key={item.id} className={'nav-child ' + (page === item.id ? 'active' : '')}
+                    aria-current={page === item.id ? 'page' : undefined}
+                    onClick={() => { setPage(item.id); setError(''); }}>
+                    <item.icon size={15} /> {item.name}
+                  </button>
+                )}
+              </div>}
+            </div>;
+          })}
         </nav>
         <div className="sidebar-bottom">
           <div className="status-box">
@@ -493,9 +653,23 @@ export default function App() {
               onClick={() =>
                 act(async () => {
                   invalidate();
-                  await auth.signOut();
+                  ++loadGeneration.current;
+                  setNarrationFile(null);
+                   setNarrationRights(false);
+                   await auth.signOut();
                   setUser(null);
+                  pendingRecoveryTest.current = false;
+                  setWorkspaceReady(false);
                   setState(initialState);
+                  setConnections({ youtubeConfigured: false, hnCachedAt: null, hnLastError: null });
+                  setPage('overview');
+                  setEdit(newProject());
+                  setSearch('');
+                  setSource('YouTube');
+                  setSettings(initialState.settings);
+                  setTheme('dark');
+                  setOpenGroup(null);
+                  aiRequest.current = null;
                 })
               }
             >
@@ -523,252 +697,70 @@ export default function App() {
             </div>
           )}
 
+          {page === 'system-check' && <SystemCheck onSimulateOutage={simulateWorkspaceOutage} />}
+          {page === 'trend-lab' && <TrendLab
+            trends={state.trends} candidates={state.candidates || []} busy={busy}
+            collect={() => collect('youtube')}
+            save={id => act(async () => {
+              await api.post('/api/candidates', { trendId: id });
+              await load(); setToast('Kandidaten sparades.');
+            })}
+            update={(id, stage, note) => act(async () => {
+              await api.post('/api/candidates/' + encodeURIComponent(id), { stage, note });
+              await load(); setToast('Kandidaten uppdaterades.');
+            })}
+            remove={id => act(async () => {
+              await api.delete('/api/candidates/' + encodeURIComponent(id));
+              await load(); setToast('Kandidaten togs bort.');
+            })}
+            draft={item => {
+              openProject({ ...newProject(), title: item.title.slice(0, 150), sourceUrl: item.url });
+              setToast('Skriv ett eget manus. Källan är förifylld.');
+            }}
+          />}
           {page === 'jobs' && <JobCenter userId={user.userId} aiEnabled={state.settings.aiTrial} youtube={connections.youtubeConfigured} onChange={load} onOpenProject={id => {
           const project = state.projects.find(p => p.id === id);
           if (project) openProject(project);
           else { setPage('studio'); setError('Manuset hittades inte i denna vy. Uppdatera arbetsytan.'); }
         }} />}
-        {page === 'overview' && (
-            <>
-              <div className="page-head">
-                <div>
-                  <div className="eyebrow">ÖVERBLICK / DIN ARBETSYTA</div>
-                  <h1>Här börjar nästa idé.</h1>
-                  <p>
-                    Dina signaler, manus och agenter. Samlade på ett ställe.
-                  </p>
-                </div>
-                <button onClick={() => openProject(newProject())}>
-                  <Plus
-                    size={15}
-                    style={{ display: 'inline', marginRight: 7 }}
-                  />
-                  Nytt videoprojekt
-                </button>
-              </div>
-              <div className="notice">
-                <strong>Din innehållsstrategi</strong>
-                <p>Trender i sociala medier inom olika ämnen. Titel och manus på engelska för nya AI-videor.</p>
-                {state.settings.language === 'en' && state.settings.contentFocus === 'social-trends' ? (
-                  <Badge tone="green">Sparat för ditt konto: sociala trender + English</Badge>
-                ) : (
-                  <button
-                    className="primary"
-                    disabled={busy}
-                    onClick={() => act(async () => {
-                      await api.post('/api/settings', {
-                        ...state.settings,
-                        language: 'en',
-                        contentFocus: 'social-trends',
-                      });
-                      await load();
-                      setToast('Din inriktning är sparad: sociala trender + English');
-                    })}
-                  >
-                    Använd sociala trender + English
-                  </button>
-                )}
-              </div>
-              <div className="hero">
-                <div className="hero-copy">
-                  <Badge tone="green">BYGG DITT FÖRSTA ARBETSFLÖDE</Badge>
-                  <h2 style={{ marginTop: 15 }}>
-                    Från trend till färdig video.
-                  </h2>
-                  <p>
-                    Följ sociala trender inom olika ämnen. Skapa originella
-                    videokoncept och manus från verkliga källsignaler.
-                  </p>
-                  <button
-                    className="primary"
-                    disabled={busy || !connections.youtubeConfigured}
-                    onClick={() => collect('youtube')}
-                  >
-                    Hämta YouTube-signaler{' '}
-                    <ArrowRight
-                      size={15}
-                      style={{ display: 'inline', marginLeft: 12 }}
-                    />
-                  </button>
-                </div>
-                <div className="radar">
-                  <Radar />
-                </div>
-              </div>
-              <div className="metrics">
-                {[
-                  {
-                    label: 'Insamlade signaler',
-                    value: state.trends.length,
-                    sub: 'Från dina hämtade källor',
-                    icon: Radar,
-                  },
-                  {
-                    label: 'Sparade manus',
-                    value: state.projects.length,
-                    sub: 'Beständiga projekt i arbetsytan',
-                    icon: Film,
-                  },
-                  {
-                    label: 'Pågående åtgärder',
-                    value: busy ? 1 : 0,
-                    sub: 'Begärda åtgärder i denna flik',
-                    icon: Bot,
-                  },
-                  {
-                    label: 'Publicerade videor',
-                    value: '—',
-                    sub: 'Ingen publiceringskälla ansluten',
-                    icon: BarChart3,
-                  },
-                ].map(m => (
-                  <div className="metric" key={m.label}>
-                    <div className="metric-top">
-                      {m.label}
-                      <m.icon />
-                    </div>
-                    <div className="metric-number">{m.value}</div>
-                    <small>{m.sub}</small>
-                  </div>
-                ))}
-              </div>
-              <div className="columns">
-                <div className="panel">
-                  <div className="panel-header">
-                    <h2>Senaste källsignaler</h2>
-                    <button
-                      className="ghost small"
-                      onClick={() => setPage('radar')}
-                    >
-                      Visa alla →
-                    </button>
-                  </div>
-                  {state.trends.length ? (
-                    state.trends
-                      .slice(0, 3)
-                      .map(t => <TrendCard key={t.id} trend={t} />)
-                  ) : (
-                    <Empty
-                      title="Din radar är redo"
-                      text="Hämta aktuella signaler från Hacker News. YouTube kan anslutas med en API-nyckel."
-                    >
-                      <button onClick={() => setPage('connections')}>
-                        Se datakällor
-                      </button>
-                    </Empty>
-                  )}
-                  <div className="workflow">
-                    <span>01 Källsignal</span>
-                    <i>→</i>
-                    <span>02 Manus</span>
-                    <i>→</i>
-                    <span>03 MP4</span>
-                    <i>→</i>
-                    <span>04 Granskning</span>
-                  </div>
-                </div>
-                <AgentPreview />
-              </div>
-            </>
-          )}
-
-          {page === 'agents' && (
-            <>
-              <div className="page-head">
-                <div>
-                  <div className="eyebrow">AGENT CONTROL CENTER</div>
-                  <h1>Tio roller. Ett arbetsflöde.</h1>
-                  <p>
-                    Aktivera eller pausa uppgifter. En förberedd roll är inte
-                    samma sak som en autonom, körande agent.
-                  </p>
-                </div>
-                <Badge tone="amber">Källor → manus i bakgrundskön</Badge>
-              </div>
-              <div className="grid">
-                {agents.map((a, i) => (
-                  <div className="panel agent-card" key={a.id}>
-                    <div
-                      className="actions"
-                      style={{ justifyContent: 'space-between', marginTop: 0 }}
-                    >
-                      <span className="agent-icon">
-                        <Bot size={19} />
-                      </span>
-                      <small>AGENT {String(i + 1).padStart(2, '0')}</small>
-                    </div>
-                    <h3>{a.name}</h3>
-                    <p>{a.role}</p>
-                    <div className="agent-details">
-                      {a.implemented
-                        ? 'Tillgänglig del: manuellt arbetsflöde'
-                        : 'Integration / agentlogik återstår'}
-                      <br />
-                      Bakgrundsuppdrag: se jobbsidan<br />
-                      Status och resultat loggas per uppgift
-                    </div>
-                    <div className="actions">
-                      <Badge
-                        tone={
-                          state.paused.includes(a.id)
-                            ? 'amber'
-                            : a.implemented
-                              ? 'green'
-                              : ''
-                        }
-                      >
-                        {state.paused.includes(a.id)
-                          ? 'Pausad'
-                          : a.implemented
-                            ? 'Väntar'
-                            : 'Ej ansluten'}
-                      </Badge>
-                      <button
-                        className="small"
-                        disabled={busy}
-                        onClick={() =>
-                          act(async () => {
-                            await api.post('/api/agents', {
-                              id: a.id,
-                              paused: !state.paused.includes(a.id),
-                            });
-                            await load();
-                          })
-                        }
-                      >
-                        {state.paused.includes(a.id) ? (
-                          <Play size={12} style={{ display: 'inline' }} />
-                        ) : (
-                          <Pause size={12} style={{ display: 'inline' }} />
-                        )}{' '}
-                        {state.paused.includes(a.id) ? 'Återuppta' : 'Pausa'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="panel" style={{ marginTop: 24 }}>
-                <div className="panel-header">
-                  <h2>Arbetsytans händelser</h2>
-                  <Activity size={17} />
-                </div>
-                <div className="panel-body">
-                  {state.events.length ? (
-                    state.events.map((event, i) => (
-                      <div className="log-row" key={event.at + i}>
-                        <small>{date(event.at)}</small>
-                        {event.text}
-                      </div>
-                    ))
-                  ) : (
-                    <p className="smallprint">
-                      Inga uppgifter har genomförts ännu.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
+          {page === 'overview' && <Dashboard
+            state={state} youtube={connections.youtubeConfigured} busy={busy}
+            onNavigate={setPage} onOpen={openProject} onNew={() => openProject(newProject())}
+            onCollect={() => collect('youtube')} onRefresh={load}
+            onProfile={() => act(async () => {
+              await api.post('/api/settings', { ...state.settings, language: 'en', contentFocus: 'social-trends' });
+              await load(); setToast('Sociala trender + English sparat för ditt konto.');
+            })}
+            onReview={(project, decision: ScriptReview['decision'], comment) => act(async () => {
+              await api.post('/api/projects/' + encodeURIComponent(project.id) + '/review', {
+                revision: revisionOf(project), expectedSha256: await scriptHash(project), expectedReviewId: project.review?.id ?? null, decision, comment,
+              });
+              await load(); setToast('Manusbeslutet är sparat. Ingen produktion eller publicering har startats.');
+            })}
+          />}
+          {page === 'agents' && <AgentTeam
+            runs={state.editorialRuns || []} projects={state.projects} onOpenProject={openProject}
+            plans={state.managerPlans || []} trends={state.trends}
+            paused={state.paused} busy={busy} aiEnabled={state.settings.aiTrial}
+            onNavigate={setPage} onCollect={() => collect('youtube')}
+            onPlan={() => act(async () => {
+              await api.post('/api/manager/plans', { requestId: crypto.randomUUID() });
+              await load();
+              setToast('Researchplan sparad. Välj en idé att utveckla.');
+            })}
+            onSelect={(planId, trendId) => act(async () => {
+              await api.post('/api/manager/plans/' + encodeURIComponent(planId) + '/select', { trendId });
+              await load();
+              setToast('Idén är vald. Inget manus har godkänts eller skapats.');
+            })}
+            onManual={trend => openProject({
+              ...newProject(), title: trend.title.slice(0, 160), sourceUrl: trend.url,
+            })}
+            onAi={trend => draft(trend)}
+            onPause={(id, paused) => act(async () => {
+              await api.post('/api/agents', { id, paused }); await load();
+            })}
+          />}
 
           {page === 'radar' && (
             <>
@@ -804,6 +796,7 @@ export default function App() {
                 musik och spel kan ingå. Hacker News är en kompletterande
                 tekniksignal. Arbetsytan uppdateras när en hämtning körs.
               </div>
+              <AutoTrendControl youtube={connections.youtubeConfigured} onRefresh={load} />
               <div className="toolbar">
                 <input
                   aria-label="Sök källsignaler"
@@ -886,9 +879,10 @@ export default function App() {
                 </button>
               </div>
               <div className="notice amber">
-                MP4-bas: originalgrafik och animerad text, utan ljud. AI-röst
-                och genererade filmklipp är ej anslutna. Exporten körs i denna
-                webbläsarflik; filen måste laddas ner innan du lämnar sidan.
+                MP4 med originalgrafik och animerad text. Du kan valfritt lägga till
+                din egen eller licensierade berättarröst. Automatisk AI-röst och AI-genererade
+                filmklipp är ännu inte anslutna. Berättarröst och video sammanfogas lokalt,
+                men textscenerna synkas ännu inte ord för ord mot talet.
               </div>
               <div className="studio-grid">
                 <div>
@@ -935,9 +929,10 @@ export default function App() {
                           value={edit.sourceUrl}
                           placeholder="https://…"
                           disabled={rendering}
-                          onChange={e =>
-                            setEdit({ ...edit, sourceUrl: e.target.value })
-                          }
+                          onChange={e => {
+                            invalidate();
+                            setEdit({ ...edit, sourceUrl: e.target.value });
+                          }}
                         />
                       </label>
                       <div className="actions">
@@ -984,6 +979,89 @@ export default function App() {
                         Manus sparas på ditt konto. Videofilen skapas lokalt.
                         Inga andras klipp eller musik används.
                       </p>
+                    </div>
+                  </div>
+                  <EditorialWorkflow
+                    project={edit}
+                    saved={state.projects.find(p => p.id === edit.id) || null}
+                    run={(state.editorialRuns || []).find(r =>
+                      r.projectId === edit.id && r.revision ===
+                      (state.projects.find(p => p.id === edit.id)?.revision ?? 0)) || null}
+                    busy={busy || rendering}
+                    onRun={(id, revision) => act(async () => {
+                      await api.post('/api/projects/' + encodeURIComponent(id) + '/editorial', { revision });
+                      await load();
+                      setToast('Fyra gratis kontrollsteg dokumenterade för manusversionen.');
+                    })}
+                    onAttest={(id, revision, runId) => act(async () => {
+                      await api.post('/api/projects/' + encodeURIComponent(id) + '/editorial/attest', {
+                        revision, runId, factsChecked: true, rightsChecked: true,
+                      });
+                      await load();
+                      setToast('Din manuella kontroll sparades. Manuset är ännu inte godkänt.');
+                    })}
+                  />
+                  <QualityWorkbench
+                    project={edit}
+                    saved={state.projects.find(p => p.id === edit.id) || null}
+                    aiEnabled={state.settings.aiTrial}
+                    busy={busy || rendering}
+                    onApply={script => {
+                      invalidate();
+                      setEdit(previous => ({ ...previous, script }));
+                      setToast('AI-förslaget finns i redigeraren. Granska och klicka Spara manus om du vill behålla det.');
+                    }}
+                  />
+                  <ShortsPlanPreview project={edit} saved={state.projects.find(p => p.id === edit.id) || null} />
+                  <VideoSelfTest disabled={busy || rendering || uploadingReview || state.paused.includes('studio')} style={videoStyle} />
+                  <div className="panel" style={{ marginTop: 20 }}>
+                    <div className="panel-body">
+                      <strong>Återhämtning av privat videoimport</strong>
+                      <p className="smallprint">Om uppladdningen avbröts precis efter videokontrollen söker ViralOS efter ett redan sparat, verifierat kvitto på servern. Funktionen startar ingen ny import och ger aldrig rätt att publicera.</p>
+                      <button className="small ghost" disabled={busy || rendering || uploadingReview} onClick={recoverIncompleteReviewUpload}>
+                        Kontrollera avbruten slutverifiering
+                      </button>
+                    </div>
+                  </div>
+                  <section className="panel" style={{ marginTop: 20 }}>
+                    <div className="panel-header"><h2>Videostil & scener</h2><Badge>Gratis renderare</Badge></div>
+                    <div className="panel-body">
+                      <p className="smallprint">Två originalstilar. Inledningen får kortare visningstid och övriga scener anpassas efter textmängden. Inga stockklipp eller externa tjänster används.</p>
+                      <label>Visuell stil
+                        <select value={videoStyle} disabled={rendering || uploadingReview}
+                          onChange={event => { invalidate(); setVideoStyle(event.target.value as VideoStyle); }}>
+                          <option value="cinematic">Cinematic – petrol, mjuka rörelser</option>
+                          <option value="bold">Bold – stark typografi, snabbare rörelse</option>
+                        </select>
+                      </label>
+                      <p className="smallprint">Undertextfilen matchar videons ungefärliga scen-/texttiming, inte en transkriberad eller taljusterad ljudfil.</p>
+                    </div>
+                  </section>
+                  <div className="panel" style={{ marginTop: 20 }}>
+                    <div className="panel-header"><h2>Berättarröst till MP4</h2><Badge>{narrationFile ? 'Ljudfil vald' : 'Valfri'}</Badge></div>
+                    <div className="panel-body">
+                      <p className="smallprint">Välj ett licensierat ljud (WAV eller MP3 rekommenderas), 15–45 sekunder och högst 12 MiB. Format och AAC-stöd beror på webbläsaren. Inga externa AI-rösttjänster används.</p>
+                      <label>Berättarröst (valfri)
+                        <input type="file" accept=".wav,.mp3,.m4a,.aac,.ogg,audio/*" disabled={rendering || uploadingReview}
+                          onChange={event => {
+                            invalidate();
+                            setNarrationFile(event.target.files?.[0] || null);
+                            setNarrationRights(false);
+                          }} />
+                      </label>
+                      {narrationFile && <>
+                        <p className="smallprint">{narrationFile.name} · {(narrationFile.size / 1048576).toFixed(1)} MiB</p>
+                        {narrationPreview && <audio controls src={narrationPreview} style={{ width: '100%' }} />}
+                        <label className="check"><input type="checkbox" checked={narrationRights}
+                          onChange={event => setNarrationRights(event.target.checked)}/>
+                          Jag har rätt att använda den här ljudfilen.
+                        </label>
+                        <button className="small ghost" disabled={rendering || uploadingReview}
+                          onClick={() => { invalidate(); setNarrationFile(null); setNarrationRights(false); }}>
+                          Ta bort ljudfil
+                        </button>
+                      </>}
+                      <p className="smallprint">Berättarröst kodas som AAC och videons längd följer ljudfilen. Granska alltid textens placering och ljudets synk.</p>
                     </div>
                   </div>
                   <div className="panel" style={{ marginTop: 20 }}>
@@ -1047,7 +1125,7 @@ export default function App() {
                     )}
                   </div>
                   <p className="smallprint">
-                    9:16 · 1080 × 1920 · H.264 · 15–45 sekunder · utan ljud
+                    9:16 · 1080 × 1920 · H.264 · 30 FPS · 15–45 sekunder · {rendered ? (rendered.withNarration ? 'AAC-ljud' : 'utan ljud') : (narrationFile ? 'med vald ljudfil' : 'utan ljud')}
                   </p>
                   <button
                     className="primary"
@@ -1083,10 +1161,30 @@ export default function App() {
                           Ladda ner MP4
                         </button>
                       </a>
+                      <button style={{ width: '100%', marginTop: 10 }} onClick={() => downloadText('viralos-video-estimated-DRAFT.srt', rendered.subtitles, 'application/x-subrip;charset=utf-8')}>
+                        <Download size={14} style={{ display: 'inline', marginRight: 6 }} />
+                        Ladda ner undertexter från MP4-tidslinjen (DRAFT .srt)
+                      </button>
+                      <button className="primary" style={{ width: '100%', marginTop: 10 }} disabled={uploadingReview || rendering} onClick={saveVideoInPrivateQueue}>
+                        {uploadingReview ? 'Lagrar privat MP4 ' + uploadProgress + ' %' : 'Spara i min privata granskningskö'}
+                      </button>
+                      <button style={{ width: '100%', marginTop: 10 }} onClick={exportReviewPacket}>
+                        <ShieldCheck size={14} style={{ display: 'inline', marginRight: 6 }} />
+                        Hämta granskningsfil (SHA-256)
+                      </button>
+                      <button className="small ghost" style={{ width: '100%', marginTop: 8 }} disabled={uploadingReview || busy} onClick={cancelIncompleteReviewUpload}>
+                        Avbryt en tidigare ofullständig import
+                      </button>
+                      <button className="ghost" style={{ width: '100%', marginTop: 8 }} onClick={() => setPage('review-inbox')}>
+                        Öppna Videogranskning →
+                      </button>
+                      <div className="notice" style={{ marginTop: 15 }}>
+                        Textscenerna i MP4 och den nedladdningsbara SRT-filen har samma tidsindelning. Tal-till-text-synkronisering och rättigheter måste fortfarande granskas manuellt.
+                      </div>
                       <div className="notice" style={{ marginTop: 15 }}>
                         Tekniskt verifierat: 1080 × 1920, {rendered.duration}{' '}
-                        sekunder, {(rendered.bytes / 1048576).toFixed(1)} MB.
-                        Ljudspår saknas avsiktligt.
+                        sekunder, {(rendered.bytes / 1048576).toFixed(1)} MB, {rendered.scenes} scener, stil {rendered.style}. {rendered.mp4Proof.videoTracks} videospår, {rendered.mp4Proof.audioTracks} ljudspår, kontrollerade från filens faktiska MP4-container.
+                        {rendered.withNarration ? 'Berättarröst inkluderad (AAC). Kontrollera synk.' : 'Ljudspår saknas avsiktligt.'} Privat lagring kräver ditt uttryckliga klick.
                       </div>
                       <label className="check">
                         <input
@@ -1105,6 +1203,8 @@ export default function App() {
               </div>
             </>
           )}
+
+          {page === 'review-inbox' && <ReviewInboxPreview loadServerQueue={async () => (await api.get('/api/video-reviews')).data} />}
 
           {page === 'calendar' && (
             <>
@@ -1125,18 +1225,18 @@ export default function App() {
               <div className="grid">
                 {[
                   {
-                    name: 'Manual Mode',
-                    text: 'Skapa och granska en MP4, ladda ner den och publicera själv i respektive plattform.',
-                    status: 'Tillgängligt via export',
+                    name: '1. Manusbeslut',
+                    text: 'Granska en sparad manusversion i kontrollpanelen. Beslutet tillåter ingen produktion eller publicering.',
+                    status: 'Tillgängligt i kontrollpanelen',
                   },
                   {
-                    name: 'Semi-Auto Mode',
-                    text: 'Automatisk produktion med ditt godkännande före publicering. Kräver worker och plattformsintegration.',
+                    name: '2. Produktion och videogranskning',
+                    text: 'Godkänn produktionsplan och kostnad. Granska därefter exakt film med ljud, undertexter och rättighetsunderlag.',
                     status: 'Planerad funktion',
                   },
                   {
-                    name: 'Auto Mode',
-                    text: 'Endast för godkända plattformar, kategorier och konton. TikTok kräver särskild kontroll och samtycke.',
+                    name: '3. Separat publiceringstillstånd',
+                    text: 'Du väljer exakt video, YouTube-kanal, metadata, synlighet och tid. Även privat uppladdning kräver ditt tillstånd. Chefen kan aldrig godkänna åt dig.',
                     status: 'Planerad funktion',
                   },
                 ].map(m => (
@@ -1336,6 +1436,26 @@ export default function App() {
                   </p>
                 </div>
               </div>
+              <section className="panel appearance-settings" style={{ marginBottom: 22 }}>
+                <div className="panel-header">
+                  <h2>Utseende</h2>
+                  <span className="badge">{theme === 'dark' ? 'Mörkt läge' : 'Ljust läge'}</span>
+                </div>
+                <div className="panel-body">
+                  <p>Välj det utseende du föredrar. Ditt val sparas på kontot och följer med när du loggar in igen.</p>
+                  <div className="appearance-buttons" role="group" aria-label="Välj färgtema">
+                    <button className={theme === 'dark' ? 'primary' : ''} type="button"
+                      aria-pressed={theme === 'dark'} disabled={busy} onClick={() => changeTheme('dark')}>
+                      <Moon size={17} /> Mörkt
+                    </button>
+                    <button className={theme === 'light' ? 'primary' : ''} type="button"
+                      aria-pressed={theme === 'light'} disabled={busy} onClick={() => changeTheme('light')}>
+                      <Sun size={17} /> Ljust
+                    </button>
+                  </div>
+                  <p className="smallprint">Mörkt läge är standard. Detta påverkar bara gränssnittet – inte produktion eller publicering.</p>
+                </div>
+              </section>
               <div className="columns">
                 <div className="panel">
                   <div className="panel-header">

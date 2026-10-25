@@ -24,7 +24,7 @@ export default function JobCenter({ userId, aiEnabled, youtube, onChange, onOpen
 }) {
   const [data, setData] = useState<QueueData>({ stopped: false, jobs: [], heartbeat: null, intervalMinutes: 5, workerErrors: 0 });
   const [kind, setKind] = useState('collect');
-  const [source, setSource] = useState('hn');
+  const [source, setSource] = useState(youtube ? 'youtube' : 'hn');
   const [start, setStart] = useState('');
   const [priority, setPriority] = useState(0);
   const [consent, setConsent] = useState(false);
@@ -87,7 +87,7 @@ export default function JobCenter({ userId, aiEnabled, youtube, onChange, onOpen
   const waiting = data.jobs.filter(j => !terminal(j.status) && j.status !== 'running').length;
   return <>
     <div className="page-head">
-      <div><div className="eyebrow">SERVERKÖ / SPÅRBARA UPPGIFTER</div><h1>Arbetet fortsätter i bakgrunden.</h1><p>Köa en uppgift, följ varje steg och öppna resultatet när det är klart.</p></div>
+      <div><div className="eyebrow">SERVERKÖ / SPÅRBARA UPPGIFTER</div><h1>Kontrollerad uppgiftskö.</h1><p>Den separata kön för beställda jobb är pausad under kvalitetssäkringen. Timvis YouTube-radar kan aktiveras separat under Trendradar. Du kan fortfarande granska, avbryta eller uttryckligen testköra ett jobb.</p></div>
       <div className="actions">
         <button disabled={busy} onClick={() => action(load)}><RefreshCw size={14} style={{ display: 'inline' }} /> Uppdatera kö</button>
         <button className={data.stopped ? 'primary' : 'danger'} disabled={busy} onClick={() => action(async () => {
@@ -97,7 +97,7 @@ export default function JobCenter({ userId, aiEnabled, youtube, onChange, onOpen
     </div>
     {error && <div className="notice error" role="alert">{error}</div>}
     {notice && <div className="notice" role="status">{notice}</div>}
-    <div className="notice amber">Servern kontrollerar kön var femte minut. Kör nu startar en vald uppgift direkt. Stopp hindrar nya steg; ett redan skickat AI-anrop kan inte återkallas. MP4-rendering och publicering ingår ännu inte i bakgrundskön.</div>
+    <div className="notice amber">Kvalitetssäkring pågår. Schemalagda beställningsjobb är pausade. Automatisk YouTube-radar är en separat opt-in-funktion under Trendradar. Kör nu startar däremot uttryckligen det valda jobbet. MP4-rendering och publicering ingår inte i bakgrundskön.</div>
     <div className="metrics">
       <div className="metric"><div className="metric-top">Pågående <Activity /></div><div className="metric-number">{running}</div><small>Registrerade serverjobb</small></div>
       <div className="metric"><div className="metric-top">Väntande <Clock /></div><div className="metric-number">{waiting}</div><small>Inklusive schemalagda och pausade</small></div>
