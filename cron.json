@@ -1,14 +1,8 @@
 [
   {
-    "name": "refresh-hn-signals",
-    "cron": "*/30 * * * *",
-    "handler": "refreshSignals",
-    "timezone": "Europe/Madrid"
-  },
-  {
-    "name": "process-background-queue",
-    "cron": "*/5 * * * *",
-    "handler": "processQueue",
-    "timezone": "Europe/Madrid"
+    "name": "hourly-youtube-radar",
+    "cron": "0 * * * *",
+    "handler": "hourlyYouTubeTrendScan",
+    "timezone": "UTC"
   }
 ]
