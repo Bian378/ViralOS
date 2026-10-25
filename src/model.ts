@@ -1,3 +1,7 @@
+import type { ScriptReview } from './review';
+import type { ManagerPlan } from './manager';
+import type { EditorialRun } from './editorial';
+
 export type Agent = {
   id: string;
   name: string;
@@ -79,12 +83,19 @@ export type Trend = {
   publishedAt: string;
   observations: Observation[];
 };
+export type Candidate = {
+  id: string; title: string; url: string; source: Trend['source'];
+  region: string; metric: string; value: number; publishedAt: string;
+  observedAt: string; addedAt: string; stage: 'new' | 'research' | 'ready'; note: string;
+};
 export type Project = {
   id: string;
   title: string;
   script: string;
   sourceUrl: string;
   origin: 'manual' | 'ai';
+  revision?: number;
+  review?: ScriptReview;
   createdAt: string;
   updatedAt: string;
 };
@@ -96,12 +107,16 @@ export type Settings = {
   aiTrial: boolean;
   language: 'sv' | 'en';
   contentFocus?: 'social-trends';
+  theme?: 'dark' | 'light';
   region: string;
 };
 export type State = {
   version: number;
   paused: string[];
   trends: Trend[];
+  candidates?: Candidate[];
+  managerPlans?: ManagerPlan[];
+  editorialRuns?: EditorialRun[];
   projects: Project[];
   events: { at: string; text: string }[];
   settings: Settings;
@@ -110,6 +125,9 @@ export const initialState: State = {
   version: 0,
   paused: [],
   trends: [],
+  candidates: [],
+  managerPlans: [],
+  editorialRuns: [],
   projects: [],
   events: [],
   settings: {
@@ -120,10 +138,12 @@ export const initialState: State = {
     aiTrial: false,
     language: 'en',
     contentFocus: 'social-trends',
+    theme: 'dark',
     region: 'SE',
   },
 };
 export function signalGrowth(t: Trend): number | null {
+  if (t.source === 'YouTube') return null;
   const a = t.observations[0];
   const b = t.observations[t.observations.length - 1];
   if (!a || !b || Date.parse(b.at) - Date.parse(a.at) < 15 * 60000) return null;

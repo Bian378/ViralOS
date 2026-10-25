@@ -1,0 +1,8 @@
+.shorts-plan-panel > summary { cursor:pointer; display:flex; align-items:center; gap:10px; font-weight:600; padding:18px 20px; }
+.shorts-plan-panel > summary .badge { margin-left:auto; }
+.shorts-plan-panel > summary:focus-visible { outline:2px solid #78caa4; outline-offset:-2px; }
+.shorts-plan-scenes { display:grid; gap:10px; padding-top:15px; }
+.shorts-plan-scene { border:1px solid #2d3b4b; border-radius:10px; padding:14px; }
+.shorts-plan-scene p { margin:10px 0 0; }
+.shell[data-theme='light'] .shorts-plan-scene { border-color:#d7e2eb; }
+@media(max-width:760px){.shorts-plan-panel > summary { flex-wrap:wrap; }}
