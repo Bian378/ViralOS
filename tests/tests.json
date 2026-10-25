@@ -266,7 +266,10 @@
       "SHA-256 and no-publication review receipt created without server upload",
       "Changing manuscript source URL invalidates stale video preview",
       "All ordinary Shorts exports check actual MP4 video and audio tracks, not just browser metadata",
-      "Stable monotonically increasing AAC packet timestamps during voiceover muxing"
+      "Stable monotonically increasing AAC packet timestamps during voiceover muxing",
+      "No intermediate AAC flush; exactly one final flush avoids Chrome macOS repeated encoder padding",
+      "Reject AAC packet totals or durations more than 0.2 s over the selected narration rather than disguising them as valid",
+      "Reject MP4 movie duration more than 0.25 s away from the intended duration"
     ],
     "description": "A saved eligible manuscript can show a draft scene plan and export SRT/JSON without online AI calls.",
     "steps": [
@@ -293,7 +296,9 @@
       "Switch to an ordinary manuscript, export and verify normal rights checks. Change the source URL and verify old rendered preview and download are invalidated and a new export is needed.",
       "Export a normal Short with no narration and verify confirmation reports 1 video and 0 audio tracks based on the MP4 container.",
       "Export with a licensed, selected voiceover and verify confirmation reports 1 video and exactly 1 audio track; any missing AAC track must reject the export rather than claim narration is present.",
-      "Generate the same rights-checked voiceover video twice and verify both fully play with audible sound, with no non-monotonic DTS timestamp error during MP4 muxing."
+      "Generate the same rights-checked voiceover video twice and verify both fully play with audible sound, with no non-monotonic DTS timestamp error during MP4 muxing.",
+      "On Chrome macOS run the built-in 21-second synthetic AAC self-test and confirm MP4 movie duration is approximately 21 seconds rather than 22.42 seconds. Verify one video and one audio track, playable sound and SHA-256.",
+      "Try 45-second speech audio and verify the encoder never performs intermediate AAC flushes, does not accumulate extra silence, and fails closed for more than 0.2 seconds of audio overrun."
     ],
     "expected": "Saved manuscript yields a draft storyboarding preview and downloaded planning files. Unsaved or invalid text is rejected. No AI calls, YouTube uploads, or approvals are triggered. A locally selected licensed narration is included as AAC when supported, but no built-in AI TTS or automatic speech alignment is claimed. MP4 and its separately downloadable estimated SRT share an exact frame timeline and the user can choose between two original motion-graphic templates. A user-triggered browser-only E2E media smoke test supplies a synthetic audible tone and proves both tracks and hash evidence, while remaining clearly separate from real voiceover or any cloud media upload. Every exported media asset, not only the isolated self-test, is checked for actual MP4 tracks before success UI."
   }

@@ -95,8 +95,9 @@ export async function renderMP4(
     if (mp4Proof.videoTracks !== 1 || mp4Proof.audioTracks !== (narration ? 1 : 0) ||
         Math.abs(mp4Proof.displayWidth - 1080) > 0.5 ||
         Math.abs(mp4Proof.displayHeight - 1920) > 0.5 ||
-        Math.abs(mp4Proof.durationSeconds - timeline.duration) > 1) {
-      throw Error('MP4-containerns verifierade värden stämmer inte: ' +
+        Math.abs(mp4Proof.durationSeconds - timeline.duration) > 0.25) {
+      throw Error('MP4-containerns verifierade värden stämmer inte (förväntat ' +
+        timeline.duration.toFixed(2) + ' s, faktiskt ' +
         Math.round(mp4Proof.displayWidth) + ' × ' + Math.round(mp4Proof.displayHeight) +
         ', ' + mp4Proof.durationSeconds.toFixed(2) + ' s, ' +
         mp4Proof.videoTracks + ' bildspår och ' + mp4Proof.audioTracks + ' ljudspår.');

@@ -46,8 +46,17 @@ export async function encodeNarration(
   }
   let count = 0;
   let failure: Error | null = null;
+  // A continuous AAC stream needs only one final flush. Intermediate flushes
+  // add encoder priming/padding on some Chrome/macOS codecs. Since output
+  // timestamps are normalized per packet, that padding inflated 21 s to 22.42 s.
+  const maxPackets = Math.ceil(narration.samples.length / 1024) + 6;
   const encoder = new AudioEncoder({
     output: (chunk, meta) => {
+      if (failure) return;
+      if (count >= maxPackets) {
+        failure = Error('AAC-kodaren skapade för mycket extraljud. Avbröt MP4-exporten utan att godkänna felaktig längd.');
+        return;
+      }
       // Some AAC WebCodecs implementations emit rounded or reordered DTS after
       // flush(). Rebuild a strictly monotonic 1024-sample output timeline.
       // Encoded AAC bytes are NOT changed; this corrects packet timing only.
@@ -79,11 +88,21 @@ export async function encodeNarration(
         data,
       });
       try { encoder.encode(audio); } finally { audio.close(); }
-      if (offset % (1024 * 48) === 0) await encoder.flush();
+      // Yield for backpressure without flushing the codec midstream.
+      // Repeated flush() adds AAC priming/tail padding on some machines.
+      if (offset > 0 && offset % (1024 * 48) === 0) {
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+      }
     }
     await encoder.flush();
     if (failure) throw failure;
     if (!count) throw Error('Ingen AAC-data skapades.');
+    const encodedDuration = count * 1024 / RATE;
+    if (encodedDuration > narration.duration + 0.2) {
+      throw Error('AAC-spåret är längre än berättarrösten (' +
+        encodedDuration.toFixed(2) + ' s mot ' + narration.duration.toFixed(2) +
+        ' s). Exporten avbröts utan att godkännas.');
+    }
   } finally {
     encoder.close();
   }
