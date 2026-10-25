@@ -92,36 +92,64 @@ export async function renderMP4(
     if (blob.size < 1024) throw Error('Videofilen är ofullständig.');
     onProgress(97);
     const mp4Proof = await inspectMp4Tracks(blob);
-    if (mp4Proof.videoTracks !== 1 || mp4Proof.audioTracks !== (narration ? 1 : 0)) {
-      throw Error('MP4-filen har inte förväntade bild- och ljudspår. Videon sparades inte.');
+    if (mp4Proof.videoTracks !== 1 || mp4Proof.audioTracks !== (narration ? 1 : 0) ||
+        Math.abs(mp4Proof.displayWidth - 1080) > 0.5 ||
+        Math.abs(mp4Proof.displayHeight - 1920) > 0.5 ||
+        Math.abs(mp4Proof.durationSeconds - timeline.duration) > 1) {
+      throw Error('MP4-containerns verifierade värden stämmer inte: ' +
+        Math.round(mp4Proof.displayWidth) + ' × ' + Math.round(mp4Proof.displayHeight) +
+        ', ' + mp4Proof.durationSeconds.toFixed(2) + ' s, ' +
+        mp4Proof.videoTracks + ' bildspår och ' + mp4Proof.audioTracks + ' ljudspår.');
     }
     onProgress(98);
     const url = URL.createObjectURL(blob);
     try {
+      // Some browsers report padded H.264 codec dimensions (1088 rather than
+      // 1080) or transient metadata values before the first frame is decoded.
+      // Validate the file's actual tkhd/mvhd fields above; wait for decoded
+      // video data instead of rejecting prematurely on loadedmetadata.
       await new Promise<void>((resolve, reject) => {
         const element = document.createElement('video');
-        let ended = false;
-        const timeout = setTimeout(() => {
-          if (!ended) reject(Error('Videon kunde inte verifieras i tid.'));
-        }, 10000);
-        const complete = (err?: Error) => {
-          if (ended) return;
-          ended = true;
-          clearTimeout(timeout);
+        let finished = false;
+        const timeout = window.setTimeout(() => {
+          complete(Error('Videon kunde inte avkodas i webbläsaren inom 20 sekunder.'));
+        }, 20000);
+        const complete = (problem?: Error) => {
+          if (finished) return;
+          finished = true;
+          window.clearTimeout(timeout);
+          element.onloadeddata = null;
+          element.onerror = null;
           element.removeAttribute('src');
           element.load();
-          err ? reject(err) : resolve();
+          problem ? reject(problem) : resolve();
         };
-        element.onloadedmetadata = () => {
-          if (element.videoWidth === 1080 && element.videoHeight === 1920 &&
-              Math.abs(element.duration - timeline.duration) < 1) {
-            complete();
+        element.preload = 'auto';
+        element.muted = true;
+        element.playsInline = true;
+        element.onloadeddata = () => {
+          const w = element.videoWidth;
+          const h = element.videoHeight;
+          const browserSeconds = element.duration;
+          // Permit only the 8px H.264 macroblock padding of an otherwise
+          // independently verified 1080-wide portrait movie.
+          const dimensionsOk = (w === 1080 || w === 1088) && h === 1920;
+          const secondsOk = Number.isFinite(browserSeconds) &&
+            Math.abs(browserSeconds - mp4Proof.durationSeconds) <= 1.5;
+          if (!dimensionsOk || !secondsOk) {
+            complete(Error('Videon kunde avkodas men webbläsaren rapporterade ' +
+              w + ' × ' + h + ', ' +
+              (Number.isFinite(browserSeconds) ? browserSeconds.toFixed(2) : String(browserSeconds)) +
+              ' s. MP4-filen innehåller ' + Math.round(mp4Proof.displayWidth) +
+              ' × ' + Math.round(mp4Proof.displayHeight) + ', ' +
+              mp4Proof.durationSeconds.toFixed(2) + ' s.'));
           } else {
-            complete(Error('Videons format eller längd stämmer inte.'));
+            complete();
           }
         };
-        element.onerror = () => complete(Error('Videofilen kunde inte spelas upp.'));
+        element.onerror = () => complete(Error('Videofilen gick inte att avkoda i webbläsaren.'));
         element.src = url;
+        element.load();
       });
     } catch (err) {
       URL.revokeObjectURL(url);

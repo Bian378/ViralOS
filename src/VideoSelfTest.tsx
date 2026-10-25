@@ -149,9 +149,10 @@ export default function VideoSelfTest({ disabled, style }: {
       {result && <>
         <div className="notice">
           <ShieldCheck size={15} style={{ display: 'inline', marginRight: 7 }} />
-          Lokal fil skapad: H.264 MP4 med {result.proof.videoTracks} videospår,
-          {result.proof.audioTracks} ljudspår, {result.scenes} scener och
-          {result.seconds.toFixed(1)} sekunder. Granskningsspärr verifierad.
+          Verifierad lokal H.264 MP4: {Math.round(result.proof.displayWidth)} ×
+          {Math.round(result.proof.displayHeight)}, {result.proof.durationSeconds.toFixed(2)} sekunder,
+          {result.proof.videoTracks} videospår, {result.proof.audioTracks} ljudspår och
+          {result.scenes} scener. Första videobilden har avkodats och granskningsspärren är aktiv.
         </div>
         <p className="smallprint">
           SHA-256: <code>{result.proof.sha256}</code>
